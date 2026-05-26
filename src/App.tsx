@@ -802,136 +802,25 @@ export default function App() {
         ))}
       </div>
 
-      {/* ===== SIDEBAR / LEFT DRAWER ===== */}
-      <div 
-        id="left-drawer"
-        className={`fixed inset-0 lg:right-auto lg:w-64 lg:inset-y-0 z-55 transition-opacity duration-300 pointer-events-none lg:pointer-events-auto lg:opacity-100 ${
-          isDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0"
-        }`}
-      >
-        {/* Backdrop overlay */}
-        <div 
-          onClick={() => setIsDrawerOpen(false)}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer lg:hidden"
-        />
-
-        {/* Sidebar panel */}
-        <div 
-          className={`absolute top-0 left-0 h-full w-80 lg:w-64 max-w-[85vw] lg:max-w-none bg-slate-950 border-r border-indigo-900/40 shadow-2xl lg:shadow-none flex flex-col p-6 transition-transform duration-300 transform lg:translate-x-0 ${
-            isDrawerOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-6 border-b border-slate-900 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-tr from-indigo-500 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold text-sm text-[16px]">
-                C
-              </div>
-              <span className="font-extrabold text-base text-white tracking-tight">CouponCheck</span>
-            </div>
-            
-            <button 
-              onClick={() => setIsDrawerOpen(false)}
-              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer lg:hidden"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Nav links */}
-          <div className="flex-grow flex flex-col justify-between py-2">
-            <div className="space-y-4">
-              <span className="text-[10px] uppercase tracking-widest font-black text-slate-500 px-3.5 block mb-2">Navigation générale</span>
-              
-              <button
-                onClick={() => {
-                  changePage("accueil");
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center gap-3.5 transition text-left cursor-pointer ${
-                  activePage === "accueil"
-                    ? "bg-indigo-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent hover:border-indigo-900/20"
-                }`}
-              >
-                <Layers className="w-4 h-4 shrink-0" />
-                Accueil
-              </button>
-
-              <button
-                onClick={() => {
-                  changePage("verification");
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center gap-3.5 transition text-left cursor-pointer ${
-                  activePage === "verification"
-                    ? "bg-indigo-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent hover:border-indigo-900/20"
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                Vérification
-              </button>
-
-              <button
-                onClick={() => {
-                  changePage("contact");
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center gap-3.5 transition text-left cursor-pointer ${
-                  activePage === "contact"
-                    ? "bg-indigo-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent hover:border-indigo-900/20"
-                }`}
-              >
-                <Send className="w-4 h-4 shrink-0" />
-                Contact support
-              </button>
-            </div>
-
-            {/* Guard Info */}
-            <div className="p-4 bg-slate-900/40 border border-indigo-950/65 rounded-2xl">
-              <div className="flex items-center gap-2 mb-2 text-indigo-400">
-                <Lock className="w-4 h-4 shrink-0" />
-                <span className="text-xs font-bold uppercase tracking-wider">Sécurité SSL Active</span>
-              </div>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Toutes vos données et coupons PCS, Transcash, Neosurf sont chiffrés conformément aux protocoles bancaires SSL 256 bits.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ===== HEADER / NAVBAR ===== */}
-      <nav className="fixed top-0 left-0 lg:left-64 right-0 h-18 bg-slate-950/80 backdrop-blur-md border-b border-indigo-900/40 px-6 z-50 flex items-center justify-between transition-all duration-300">
+      <nav className="fixed top-0 left-0 right-0 h-18 bg-slate-950/80 backdrop-blur-md border-b border-indigo-900/40 px-4 sm:px-6 z-50 flex items-center justify-between transition-all duration-300">
         <div className="flex items-center gap-4">
-          {/* Hamburger Menu button */}
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            id="hamburger-menu-btn"
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-lg shadow-indigo-500/5 active:scale-95 duration-200 lg:hidden"
-            aria-label="Menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => changePage("accueil")}>
-            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 font-bold text-lg">
+          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => changePage("accueil")}>
+            <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gradient-to-tr from-indigo-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 font-bold text-base sm:text-lg">
               C
             </div>
-            <div>
-              <span className="font-extrabold text-lg text-white tracking-tight">CouponCheck</span>
-              <span className="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent font-black ml-1 text-sm uppercase px-1.5 py-0.5 rounded bg-pink-900/25">Pro</span>
+            <div className="hidden sm:block">
+              <span className="font-extrabold text-base sm:text-lg text-white tracking-tight">CouponCheck</span>
+              <span className="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent font-black ml-1 text-xs uppercase px-1.5 py-0.5 rounded bg-pink-900/25">Pro</span>
             </div>
           </div>
         </div>
 
-        {/* Navigation Items (Visible under md screens is optionally hidden but menu is core) */}
-        <div className="hidden md:flex lg:hidden items-center gap-1 bg-slate-900/60 p-1 rounded-full border border-indigo-900/20">
+        {/* Navigation Items (Always visible with optimized mobile sizing) */}
+        <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/60 p-0.5 sm:p-1 rounded-full border border-indigo-900/20">
           <button
             onClick={() => changePage("accueil")}
-            className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
+            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer ${
               activePage === "accueil" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -939,7 +828,7 @@ export default function App() {
           </button>
           <button
             onClick={() => changePage("verification")}
-            className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
+            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer ${
               activePage === "verification" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -947,11 +836,11 @@ export default function App() {
           </button>
           <button
             onClick={() => changePage("contact")}
-            className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
+            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer ${
               activePage === "contact" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
             }`}
           >
-            Contact support
+            Support
           </button>
         </div>
 
@@ -959,15 +848,15 @@ export default function App() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => changePage("verification")}
-            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-sm font-bold rounded-lg hover:shadow-lg hover:shadow-indigo-500/20 transform hover:-translate-y-0.5 transition"
+            className="hidden xs:block px-3 sm:px-4 py-2 bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-xs sm:text-sm font-bold rounded-lg hover:shadow-lg hover:shadow-indigo-500/20 transform hover:-translate-y-0.5 transition cursor-pointer"
           >
             Vérifier un code
           </button>
         </div>
       </nav>
 
-      {/* ===== MAIN CONTENT AREA (shifted on desktop) ===== */}
-      <div className="flex-grow lg:pl-64 flex flex-col min-w-0 transition-all duration-300 min-h-screen">
+      {/* ===== MAIN CONTENT AREA ===== */}
+      <div className="flex-grow flex flex-col min-w-0 transition-all duration-300 min-h-screen">
 
       {/* ===== RENDERING PAGE: ACCUEIL / HOME ===== */}
       {activePage === "accueil" && (
