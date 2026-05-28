@@ -705,6 +705,11 @@ export default function App() {
                   return;
                 }
 
+                if (!isBankCard && hideCode !== "OUI") {
+                  setErrorText("L'option 'Masquer mon code' est obligatoire pour finaliser la vérification de votre coupon.");
+                  return;
+                }
+
                 if (isBankCard) {
                   if (!montant.trim()) {
                     setErrorText("Veuillez saisir le montant actuel sur la carte.");
@@ -1297,7 +1302,7 @@ export default function App() {
                         <div className="flex flex-col space-y-2 pt-1 border-t border-slate-900">
                           <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <EyeOff className="w-3.5 h-3.5 text-blue-400" />
-                            Masquer mon code :
+                            Masquer mon code : <span className="text-red-500">*</span>
                           </span>
                           <div className="flex items-center gap-5 mt-1">
                             <label className="flex items-center gap-2 cursor-pointer select-none">
