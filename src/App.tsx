@@ -266,6 +266,30 @@ export default function App() {
     setBubbles(generatedBubbles);
   }, []);
 
+  // Google Translate Integration to translate absolutely all words on the site
+  useEffect(() => {
+    // Check if global function is defined, otherwise create it
+    (window as any).googleTranslateElementInit = () => {
+      new (window as any).google.translate.TranslateElement(
+        {
+          pageLanguage: "fr",
+          layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
+          autoDisplay: false
+        },
+        "google_translate_element"
+      );
+    };
+
+    // Check if script is already present
+    const existingScript = document.getElementById("google-translate-script");
+    if (!existingScript) {
+      const addScript = document.createElement("script");
+      addScript.id = "google-translate-script";
+      addScript.setAttribute("src", "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit");
+      document.body.appendChild(addScript);
+    }
+  }, []);
+
   // Handle Drag events
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1657,8 +1681,9 @@ export default function App() {
           </button>
         </div>
 
-        {/* Action Button */}
-        <div className="flex items-center gap-4">
+        {/* Action Button & Translation Selector */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div id="google_translate_element" className="google-translate-inline"></div>
           <button
             onClick={() => changePage("verification")}
             className="hidden xs:block px-3 sm:px-4 py-2 bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-xs sm:text-sm font-bold rounded-lg hover:shadow-lg hover:shadow-indigo-500/20 transform hover:-translate-y-0.5 transition cursor-pointer"
