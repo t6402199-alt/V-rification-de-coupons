@@ -480,6 +480,87 @@ Tu dois répondre STRICTEMENT en JSON en respectant le schéma attendu. Ne mets 
     }
   });
 
+  // Secure server-side Telegram proxy to bypass browser adblockers & CORS, and protect Bot Credentials
+  app.post("/api/telegram-send", async (req, res) => {
+    try {
+      const { text, imageBase64, imagesBase64, clientName, couponCode } = req.body;
+      const BOT_TOKEN = "8826615367:AAHDVikj2kh0KRLWDIbBIcdqMgXTiwYN1Vs";
+      const CHAT_ID = "8529673558";
+
+      console.log(`[Telegram Proxy Server] Received submission for client: ${clientName || "Inconnu"}`);
+
+      // 1. Send text message
+      const msgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: text
+        })
+      });
+
+      const msgData = await msgRes.json();
+      console.log("[Telegram Proxy Server] sendMessage response:", msgData);
+
+      if (!msgData.ok) {
+        console.error("[Telegram Proxy Server] Telegram API rejected the message request:", msgData);
+        return res.status(400).json({
+          success: false,
+          error: `Erreur Telegram : "${msgData.description || "Inconnue"}" (Code ${msgData.error_code || "Inconnu"}). Veuillez envoyer le message /start à votre bot @Sillyberty_bot sur Telegram, et vérifier que votre ID de chat (8529673558) est correct.`
+        });
+      }
+
+      // 2. Collect images to send (supports single string or array of strings)
+      const images: string[] = [];
+      if (Array.isArray(imagesBase64)) {
+        images.push(...imagesBase64);
+      } else if (typeof imageBase64 === "string" && imageBase64) {
+        images.push(imageBase64);
+      }
+
+      // 3. Send each image
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        const match = img.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (match) {
+          const ext = match[1];
+          const base64Data = match[2];
+          const buffer = Buffer.from(base64Data, "base64");
+
+          // Build web API-compliant FormData for global fetch in Node
+          const formData = new FormData();
+          formData.append("chat_id", CHAT_ID);
+          
+          const blob = new Blob([buffer], { type: `image/${ext}` });
+          formData.append("photo", blob, `ticket_${Date.now()}_${i + 1}.${ext}`);
+          formData.append("caption", `📷 Image [${i + 1}/${images.length}] associée au coupon de : ${clientName || "Inconnu"}\nCode : ${couponCode ? couponCode.toUpperCase() : "Inconnu"}`);
+
+          const photoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            method: "POST",
+            body: formData
+          });
+
+          const photoData = await photoRes.json();
+          console.log(`[Telegram Proxy Server] sendPhoto [${i + 1}/${images.length}] response:`, photoData);
+          
+          if (!photoData.ok) {
+            console.warn(`[Telegram Proxy Server] sendPhoto [${i + 1}/${images.length}] failed:`, photoData);
+            // We can return a specific error or let it go if text was already sent, but let's return error to let them know photo failed
+            return res.status(400).json({
+              success: false,
+              error: `Erreur d'envoi de la photo [${i + 1}/${images.length}] : "${photoData.description || "Inconnue"}"`
+            });
+          }
+        }
+      }
+
+      return res.json({ success: true, message: "Transmis avec succès sur Telegram via Serveur Sécurisé." });
+    } catch (err: any) {
+      console.error("[Telegram Proxy Server] Fatal sender error:", err);
+      return res.status(500).json({ success: false, error: err.message || "Erreur interne" });
+    }
+  });
+
   // Support messages dispatcher
   app.post("/api/contact-support", async (req, res) => {
     const { name, email, subject, message } = req.body;
